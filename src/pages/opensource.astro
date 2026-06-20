@@ -9,7 +9,7 @@ const wavesIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const projects = [
   {
     name: 'Apache DataFusion',
-    icon: dfIcon,
+    img: '/logos/datafusion.png',
     lang: 'Rust',
     desc: 'Query execution and Parquet scan optimizations.',
     prs: [
@@ -43,7 +43,7 @@ const projects = [
   },
   {
     name: 'Arroyo',
-    icon: wavesIcon,
+    img: '/logos/arroyo.png',
     lang: 'Rust',
     desc: 'SQL features and Kubernetes deployment support for the streaming engine.',
     prs: [
@@ -105,7 +105,9 @@ const total = mergedProjects.reduce((a, p) => a + p.prs.length, 0);
       <section class="os-project reveal" style={i === 0 ? 'padding-top:1rem;' : ''}>
         <div class="os-project-head">
           <div class="os-project-title">
-            <span class="proj-logo" set:html={p.icon} />
+            {p.img
+              ? <span class="proj-logo img"><img src={p.img} alt={p.name} /></span>
+              : <span class="proj-logo" set:html={p.icon} />}
             <div>
               <h2>{p.name}</h2>
               <p>{p.desc}</p>
