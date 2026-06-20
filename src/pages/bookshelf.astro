@@ -1,0 +1,90 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const books = [
+  {
+    title: 'Designing Data-Intensive Applications',
+    author: 'Martin Kleppmann',
+    note: 'The bible of modern data systems — replication, partitioning, consistency, and the trade-offs behind every storage engine.',
+    cover: '/books/ddia.jpg',
+    href: 'https://www.oreilly.com/library/view/designing-data-intensive-applications/9781491903063/',
+    tag: 'Distributed Data',
+  },
+  {
+    title: 'Database Internals',
+    author: 'Alex Petrov',
+    note: 'A deep dive into how databases work under the hood — storage engines, B-trees, LSM-trees, and distributed coordination.',
+    cover: '/books/dbinternals.jpg',
+    href: 'https://www.oreilly.com/library/view/database-internals/9781492040330/',
+    tag: 'Databases',
+  },
+  {
+    title: 'Rust Atomics and Locks',
+    author: 'Mara Bos',
+    note: 'Low-level concurrency in Rust — memory ordering, atomics, and building your own locks from scratch.',
+    cover: '/books/rust.jpg',
+    href: 'https://www.oreilly.com/library/view/rust-atomics-and/9781098119430/',
+    tag: 'Concurrency',
+  },
+  {
+    title: 'Algorithms and Data Structures for Massive Datasets',
+    author: 'Medjedović, Tahirović',
+    note: 'Probabilistic structures and streaming algorithms — Bloom filters, sketches, and sampling for data that does not fit in memory.',
+    cover: '/books/massive.jpg',
+    href: 'https://www.manning.com/books/algorithms-and-data-structures-for-massive-datasets',
+    tag: 'Algorithms',
+  },
+  {
+    title: 'Understanding Distributed Systems',
+    author: 'Roberto Vitillo',
+    note: 'A practical tour of large-scale systems — communication, coordination, scalability, and resiliency woven into one story.',
+    cover: '/books/uds.jpg',
+    href: 'https://understandingdistributed.systems/',
+    tag: 'Distributed Systems',
+  },
+];
+---
+
+<Layout
+  title="Bookshelf · Ratul Dawar"
+  description="A shelf of technical books Ratul Dawar reads on databases, distributed systems, algorithms, and Rust."
+>
+  <main>
+    <section class="hero os-hero">
+      <p class="eyebrow">Bookshelf</p>
+      <h1>Books on my <span class="grad">shelf</span></h1>
+      <p class="lede">
+        The technical books I keep coming back to — the foundations of databases, distributed
+        systems, concurrency, and the algorithms behind data at scale.
+      </p>
+    </section>
+
+    <section class="book-grid-section">
+      <div class="book-grid">
+        {books.map((b) => (
+          <a class="book-card reveal" href={b.href} target="_blank" rel="noopener">
+            <div class="book-cover">
+              <img src={b.cover} alt={`${b.title} cover`} loading="lazy" />
+              <span class="book-tag">{b.tag}</span>
+            </div>
+            <div class="book-meta">
+              <h3>{b.title}</h3>
+              <p class="book-author">{b.author}</p>
+              <p class="book-note">{b.note}</p>
+              <span class="book-link">View →</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </section>
+
+    <section class="contact reveal">
+      <h2>Always reading <span class="grad">something</span>.</h2>
+      <p>Notes and write-ups from what I read live on my blog and papershelf.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a href="/papershelf" class="btn btn-primary">Papershelf</a>
+        <a href="/" class="btn btn-ghost">← Back home</a>
+      </div>
+    </section>
+  </main>
+</Layout>
