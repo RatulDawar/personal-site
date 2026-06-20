@@ -16,7 +16,7 @@ const words = (post.body ?? '').split(/\s+/).filter(Boolean).length;
 const readingTime = Math.max(1, Math.round(words / 200));
 ---
 
-<Layout title={`${post.data.title} · Ratul Dawar`} description={post.data.description}>
+<Layout title={`${post.data.title} · Ratul Dawar`} description={post.data.description} pixels={false}>
   <main>
     <article class="prose">
       <a href="/blog" class="back-link">← All posts</a>
