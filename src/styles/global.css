@@ -661,6 +661,20 @@ section { padding: 5rem 0; }
   margin-bottom: 1.5rem;
 }
 
+.os-project-title { display: flex; align-items: center; gap: 1rem; }
+
+.proj-logo {
+  width: 46px; height: 46px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.proj-logo svg { width: 26px; height: 26px; }
+
 .os-project-head h2 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -906,9 +920,6 @@ section { padding: 5rem 0; }
 .profile:hover { border-color: var(--amber); box-shadow: 0 0 30px var(--amber-soft); }
 
 .profile .badge {
-  font-family: var(--font-mono);
-  font-size: 1.4rem;
-  font-weight: 700;
   color: var(--amber);
   width: 56px; height: 56px;
   display: grid;
@@ -917,6 +928,8 @@ section { padding: 5rem 0; }
   background: var(--amber-soft);
   flex-shrink: 0;
 }
+
+.profile .badge svg { width: 30px; height: 30px; }
 
 .profile .rank { font-weight: 600; font-size: 1.05rem; }
 .profile .sub { font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono); }
