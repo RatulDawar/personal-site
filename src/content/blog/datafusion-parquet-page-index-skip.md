@@ -13,7 +13,7 @@ When you run `SELECT * FROM parquet_table WHERE col IS NOT NULL`, DataFusion may
 
 Parquet is columnar. A file stores data pages grouped into row groups, then packs planning metadata in the footer. Scanners typically read the footer first.
 
-![Parquet file layout](/assets/parquet-file-anatomy.svg)
+![Parquet file layout](/posts/assets/parquet-file-anatomy.svg)
 
 Three structures matter for pruning:
 
@@ -29,7 +29,7 @@ Page index is powerful for range filters (`col > 50`) where row-group min/max is
 
 Each file in a scan goes through a state machine in `datafusion/datasource-parquet/src/opener/mod.rs`. The opener interleaves cheap CPU pruning with optional metadata I/O before building the Arrow reader stream.
 
-![DataFusion Parquet opener pipeline](/assets/parquet-scan-pipeline.svg)
+![DataFusion Parquet opener pipeline](/posts/assets/parquet-scan-pipeline.svg)
 
 Stages in order:
 
@@ -85,7 +85,7 @@ Page index loads only when all of these hold:
 
 Otherwise the opener jumps straight to bloom-filter loading. When the skip happens and page index would have been relevant, DataFusion increments a `page_index_load_skipped` metric.
 
-![Before vs after page index loading](/assets/parquet-page-index-before-after.svg)
+![Before vs after page index loading](/posts/assets/parquet-page-index-before-after.svg)
 
 ### Concrete example: `IS NOT NULL` on a non-null column
 
