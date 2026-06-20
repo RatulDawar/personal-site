@@ -1,126 +1,108 @@
 ---
 title: "Inside a DataFusion Parquet Scan: Skipping Page Index I/O When Statistics Already Decide"
 date: 2026-06-20
-description: "How the Parquet opener prunes at file, row-group, page, and bloom layers — and why PR #22857 stops loading page index metadata when row-group statistics already prove the filter."
+description: "How a Parquet scan reads a file end to end — footer, row groups, page index, bloom filters — and why PR #22857 stops loading page index metadata when row-group statistics already prove the filter."
 tag: "DataFusion"
 ---
 
-When you run `SELECT * FROM parquet_table WHERE col IS NOT NULL`, DataFusion may still read Parquet page index structures from object storage even though row-group statistics already prove every surviving row group matches the filter. That extra tail I/O buys nothing.
+When you run a query like `SELECT * FROM parquet_table WHERE col IS NOT NULL`, DataFusion may still reach out to object storage and read Parquet page index structures — even though the coarser row-group statistics already prove every surviving row group matches the filter. That extra round of I/O buys nothing.
 
-[PR #22857](https://github.com/apache/datafusion/pull/22857) (merged, closes [#22795](https://github.com/apache/datafusion/issues/22795)) reorders the Parquet opener so page index loading happens only when page-level pruning can still help. No query results change — only unnecessary metadata reads disappear.
+[PR #22857](https://github.com/apache/datafusion/pull/22857) (merged, closes [#22795](https://github.com/apache/datafusion/issues/22795)) reorders the Parquet reader so page index loading happens only when page-level pruning can still help. No query results change — only unnecessary metadata reads disappear.
 
-## Parquet file anatomy
+To understand the fix, it helps to first understand how a Parquet file is read from start to finish.
 
-Parquet is columnar. A file stores data pages grouped into row groups, then packs planning metadata in the footer. Scanners typically read the footer first.
+## How a Parquet file is laid out
+
+Parquet is a columnar format. Instead of storing rows one after another, it groups values from the same column together so a scan can read only the columns a query needs and compress them well.
+
+A file is organized as a hierarchy:
+
+- The file is split into **row groups** — horizontal slices of the table, each holding a few hundred thousand to a few million rows.
+- Within a row group, each column is stored as a **column chunk**.
+- Each column chunk is split into **data pages** — the smallest unit that gets decoded, usually a few thousand rows.
+- At the very end sits the **footer**, which holds the schema and all the planning metadata: the list of row groups, per-column statistics, and pointers to optional index structures.
+
+A reader always starts at the footer, because that is where it learns what the file contains and what it can safely skip.
 
 ![Parquet file layout](/assets/parquet-file-anatomy.svg)
 
-Three structures matter for pruning:
+## The three structures used for skipping data
 
-| Structure | Granularity | What it stores | Typical use |
-|-----------|-------------|----------------|-------------|
-| Row-group statistics | Entire row group | min, max, null count per column | Skip whole row groups |
-| ColumnIndex + OffsetIndex (page index) | Individual data pages | min/max/null per page, byte offsets | Skip pages inside a row group |
-| Bloom filters | Row group + column | Probabilistic membership | Skip row groups on equality predicates |
+The whole point of all this metadata is to avoid reading data the query does not need. Parquet offers three levels of "skip" information, each finer-grained and more expensive to fetch than the last:
 
-Page index is powerful for range filters (`col > 50`) where row-group min/max is too coarse. It is useless when statistics already prove the predicate is true for every row in every surviving row group.
+| Structure | Granularity | What it stores | What it lets you skip |
+|-----------|-------------|----------------|-----------------------|
+| Row-group statistics | Entire row group | min, max, null count per column | Whole row groups |
+| Page index (ColumnIndex + OffsetIndex) | Individual data pages | min/max/null per page, byte offsets | Individual pages inside a row group |
+| Bloom filters | Row group + column | Probabilistic membership | Row groups on equality predicates |
 
-## The complete DataFusion Parquet scan pipeline
+Row-group statistics live inside the footer you already read, so they are essentially free. The **page index** and **bloom filters** are separate blocks that require extra reads from storage. On a local disk that is cheap; on object storage like S3, every one of those reads is a network round trip that adds latency.
 
-Each file in a scan goes through a state machine in `datafusion/datasource-parquet/src/opener/mod.rs`. The opener interleaves cheap CPU pruning with optional metadata I/O before building the Arrow reader stream.
+The page index shines for range filters like `col > 50`, where a row group's overall min/max is too coarse to rule the group out but most individual pages can still be skipped. It is useless when the statistics already prove the predicate is true for **every** row in a row group — there is nothing left to skip.
+
+## Reading a file, step by step
+
+For each file in a scan, DataFusion runs through an ordered pipeline. Each stage either does cheap in-memory pruning or pays for some optional I/O, and each stage narrows down what the next one has to look at.
 
 ![DataFusion Parquet opener pipeline](/assets/parquet-scan-pipeline.svg)
 
-Stages in order:
+1. **Prune the file** — using file-level statistics and partition values, entire files can be dropped before anything is even opened.
+2. **Load the footer** — read the schema, the row-group list, and the row-group statistics.
+3. **Prepare the filters** — adapt the query's predicate to this file's schema and build the row-group and page pruning logic.
+4. **Prune with row-group statistics** — check each row group's min/max/null counts. Groups that cannot match are dropped. Groups where the statistics prove *every* row matches are marked **fully matched** (for example, `IS NOT NULL` on a column that has zero nulls in that group).
+5. **Load the page index** *(optional)* — an extra read for the per-page ColumnIndex and OffsetIndex.
+6. **Load and apply bloom filters** *(optional)* — extra I/O to rule out row groups on equality checks.
+7. **Build the read stream** — assemble the final selection of row groups and pages, then decode the actual data.
 
-1. **PruneFile** — file-level statistics and partition values. Entire files can be skipped before any footer read.
-2. **LoadMetadata** — read the Parquet footer (schema, row-group list, row-group statistics).
-3. **PrepareFilters** — specialize the physical predicate to the file schema; build row-group and page pruning predicates.
-4. **PruneWithStatistics** — evaluate row-group min/max/null counts. Row groups that cannot match are dropped. Surviving groups may be marked **fully matched** when statistics prove every row satisfies the predicate (for example `IS NOT NULL` on a column with zero nulls in that row group).
-5. **LoadPageIndex?** — optional extra footer read for ColumnIndex and OffsetIndex.
-6. **LoadBloomFilters / PruneWithBloomFilters** — optional bloom-filter I/O and pruning.
-7. **BuildStream** — construct `ParquetRecordBatchStream` with the final row-group and page selection, then decode data pages.
+The expensive parts of this pipeline are not the comparisons — those are fast in-memory boolean checks. The cost is in the optional storage reads for the page index and bloom filters. The art of an efficient scan is fetching those only when a cheaper layer has left some genuine uncertainty.
 
-Pruning is layered: each stage narrows what the next stage must consider. The expensive part is not the boolean logic — it is the extra object-store reads for page index and bloom filters.
+## What the page index actually does
 
-## What page index pruning actually does
+Inside a surviving row group, the page index lets the reader prune at the page level. ColumnIndex records the min/max/null statistics for each page, and OffsetIndex records where each page sits on disk. With both, the reader can intersect the predicate against each page and skip the pages that cannot possibly match — without decoding them.
 
-Inside a surviving row group, data is split into pages (often a few thousand rows each). ColumnIndex stores per-page min/max/null statistics. OffsetIndex stores where each page lives on disk.
+But there is a catch. If a row group is already **fully matched** — the statistics have proven every single row satisfies the filter — then page-level pruning has nothing to do. Every page in that group is going to be read regardless. Loading the page index for it is pure waste.
 
-When page index is loaded, `PagePruningAccessPlanFilter` intersects page selections across single-column predicates. If a page's statistics prove the predicate cannot match, that page is skipped during decode.
+That was exactly the inefficiency. In the original ordering, the page index was loaded **before** row-group statistics pruning ran its course. So the reader paid for ColumnIndex and OffsetIndex I/O even in cases where every surviving row group would end up fully matched and the page index could never have changed a thing.
 
-Row groups marked **fully matched** already skip page pruning work at evaluation time:
+## What the optimization changes
 
-```rust
-if access_plan.is_fully_matched(row_group_index) {
-    // all rows satisfy the predicate — page-level pruning is wasted work
-    continue;
-}
-```
+The fix is a reordering plus a guard. Row-group statistics pruning now runs **first**, and only then does the reader decide whether the page index is worth fetching.
 
-The bug was earlier in the pipeline: page index was loaded **before** row-group statistics pruning ran, so the opener paid for ColumnIndex/OffsetIndex I/O even when every surviving row group would turn out fully matched.
+The page index is loaded only when both of these are true:
 
-## The optimization
+- The query actually has a predicate that the page index could use.
+- At least one surviving row group is **not** fully matched by row-group statistics — i.e. there is still uncertainty that finer-grained page pruning could resolve.
 
-PR #22857 moves `PruneWithStatistics` before `LoadPageIndex` and adds a gate:
-
-```rust
-fn should_load_page_index(
-    page_pruning_predicate: Option<&Arc<PagePruningAccessPlanFilter>>,
-    row_groups: &RowGroupAccessPlanFilter,
-) -> bool {
-    page_pruning_predicate.is_some_and(|_| {
-        let fully_matched = row_groups.is_fully_matched();
-        row_groups
-            .row_group_indexes()
-            .any(|idx| !fully_matched[idx])
-    })
-}
-```
-
-Page index loads only when all of these hold:
-
-- There is a page-pruning predicate (page index is enabled and the filter can use it).
-- At least one surviving row group is **not** fully matched by row-group statistics.
-
-Otherwise the opener jumps straight to bloom-filter loading. When the skip happens and page index would have been relevant, DataFusion increments a `page_index_load_skipped` metric.
+If neither condition holds, the reader skips straight past page index loading to the next stage. When it skips a load that would otherwise have happened, it records a `page_index_load_skipped` metric so the savings are observable.
 
 ![Before vs after page index loading](/assets/parquet-page-index-before-after.svg)
 
-### Concrete example: `IS NOT NULL` on a non-null column
+### A concrete example
 
-Consider a file where column `a` has no nulls in any row group.
+Take a file where column `a` has no nulls anywhere, and a query filtering on `a IS NOT NULL`.
 
-| Step | Row-group statistics | Page index needed? |
-|------|----------------------|--------------------|
-| Predicate | `a IS NOT NULL` | — |
-| After statistics pruning | All surviving row groups marked fully matched | No — every page in those groups already satisfies the predicate |
-| Before PR #22857 | Page index loaded anyway | Wasted I/O |
-| After PR #22857 | `should_load_page_index` returns false | Skipped; metric incremented |
+| Step | What happens |
+|------|--------------|
+| Predicate | `a IS NOT NULL` |
+| After row-group statistics pruning | Every surviving row group is marked fully matched |
+| Before the fix | Page index loaded anyway — wasted I/O |
+| After the fix | Page index load skipped, metric incremented |
 
-Range predicates like `a > 50` usually leave row groups **not** fully matched, so page index still loads and still prunes individual pages inside coarse row groups.
+Contrast that with a range filter like `a > 50`. There, the row groups usually come out **not** fully matched — the overall min/max spans the threshold — so the page index still loads and still earns its cost by pruning individual pages inside those coarse groups.
 
-## Other details in the PR
+## How to see it in action
 
-- **Cached metadata path** — `DFParquetMetadata` honors `PageIndexPolicy::Skip` so cached readers do not eagerly load page index structures.
-- **Observability** — `page_index_load_skipped` counter on `ParquetFileMetrics` (registered via a crate-private helper to avoid a semver-breaking public field).
-- **Tests** — unit tests for `should_load_page_index`, integration tests for default and cached reader factories, and sqllogictest updates for the new metric.
+Enable DataFusion execution metrics and look for `page_index_load_skipped` on the Parquet scan nodes. A non-zero count means the reader recognized that row-group statistics already settled the filter and avoided page index I/O that would not have changed the scan plan.
 
-## How to observe it
+The win is not faster comparisons — it is fewer metadata reads against storage. That matters most for files on object storage and for scans that touch a large number of files, where each saved read is a saved round trip.
 
-Enable DataFusion execution metrics and look for `page_index_load_skipped` on Parquet scan nodes. A non-zero value on queries where row-group statistics fully prove the filter means the opener avoided page index I/O that would not have changed the scan plan.
+## Takeaways
 
-Integration tests in the PR assert the counter is `1` for a fully-matched `a > 0` scan over a non-null column and `0` when page index is still required (`a > 50` over the same file). I have not published end-to-end latency benchmarks for this change; the win is eliminating redundant metadata reads on object storage, which matters most on remote files and high file-count scans.
-
-## Practical takeaways
-
-1. **Parquet pruning is hierarchical** — file → row group → page → bloom. Each layer has a cost (I/O or CPU). Load metadata only when a cheaper layer leaves uncertainty.
-2. **Fully matched row groups are a strong signal** — when statistics prove all rows match, finer-grained indexes cannot prune further.
-3. **Correctness unchanged** — this is pure scan planning efficiency. The same rows are read; fewer footer structures are fetched.
+1. **Parquet pruning is hierarchical** — file → row group → page → bloom. Each layer costs either CPU or I/O. Only pay for a finer layer when a cheaper one leaves real uncertainty.
+2. **Fully matched row groups are a strong signal** — once statistics prove every row matches, no finer index can prune anything further.
+3. **Correctness is untouched** — this is purely about *planning* the scan more cheaply. The exact same rows are read; the reader just stops fetching metadata it cannot use.
 
 ## Links
 
 - Merged PR: https://github.com/apache/datafusion/pull/22857
 - Issue: https://github.com/apache/datafusion/issues/22795
-- Opener state machine: `datafusion/datasource-parquet/src/opener/mod.rs`
-- Page pruning: `datafusion/datasource-parquet/src/page_filter.rs`
