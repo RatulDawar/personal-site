@@ -1,0 +1,38 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog'))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Layout title="Home" active="home">
+  <section class="hero">
+    <p class="eyebrow">Performance · Rust · Query engines</p>
+    <h1>Systems programming,<br />measured.</h1>
+    <p class="lede">
+      Deep dives into Rust experiments, Apache DataFusion contributions, and the mechanics
+      behind real speedups — with benchmarks, not vibes.
+    </p>
+  </section>
+
+  <p class="section-label">Latest writing</p>
+
+  <div class="post-grid">
+    {posts.map((post, i) => (
+      <article class:list={['post-card', { featured: post.data.featured && i === 0 }]}>
+        <div>
+          <div class="card-meta">
+            <time datetime={post.data.date.toISOString()}>
+              {post.data.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+            </time>
+            <span class="card-tag">{post.data.tag}</span>
+          </div>
+          <h2><a href={`/blog/${post.slug}`}>{post.data.title}</a></h2>
+          <p>{post.data.description}</p>
+          <a class="read-more" href={`/blog/${post.slug}`}>Read the post →</a>
+        </div>
+      </article>
+    ))}
+  </div>
+</Layout>

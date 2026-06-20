@@ -1,0 +1,31 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog'))
+  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<Layout title="Writing" active="blog" description="Blog posts by Ratul Dawar on Rust, DataFusion, and systems programming.">
+  <section class="hero">
+    <p class="eyebrow">All posts</p>
+    <h1>Writing</h1>
+    <p class="lede">Technical deep dives with benchmarks, flamegraphs, and the occasional surprise result.</p>
+  </section>
+
+  <div class="post-grid">
+    {posts.map((post) => (
+      <article class="post-card">
+        <div class="card-meta">
+          <time datetime={post.data.date.toISOString()}>
+            {post.data.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </time>
+          <span class="card-tag">{post.data.tag}</span>
+        </div>
+        <h2><a href={`/blog/${post.slug}`}>{post.data.title}</a></h2>
+        <p>{post.data.description}</p>
+        <a class="read-more" href={`/blog/${post.slug}`}>Read the post →</a>
+      </article>
+    ))}
+  </div>
+</Layout>
