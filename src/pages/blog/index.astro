@@ -7,6 +7,16 @@ const posts = (await getCollection('blog')).sort(
 );
 
 const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+
+const themes: Record<string, { from: string; to: string; accent: string; glyph: string }> = {
+  DataFusion: { from: '#1a1230', to: '#0c0c18', accent: '#8b7cf0', glyph: '{ }' },
+  Concurrency: { from: '#0f2222', to: '#0a0f14', accent: '#38d9c4', glyph: '⇄' },
+  Async: { from: '#221a0c', to: '#100c0a', accent: '#f0a93b', glyph: '~' },
+  Trino: { from: '#10202a', to: '#0a0e14', accent: '#56b6e0', glyph: '⌗' },
+  CPU: { from: '#2a1014', to: '#140a0c', accent: '#f06b6b', glyph: '⧉' },
+};
+const fallback = { from: '#1a1a26', to: '#0c0c14', accent: '#9b99ad', glyph: '#' };
+const themeFor = (tag: string) => themes[tag] ?? fallback;
 ---
 
 <Layout
@@ -25,7 +35,9 @@ const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: '2
 
     <section class="os-project" style="padding-top:1rem;">
       <ul class="post-cards">
-        {posts.map((post) => (
+        {posts.map((post) => {
+          const t = themeFor(post.data.tag);
+          return (
           <li>
             <a
               class="post-card-row reveal"
@@ -33,17 +45,26 @@ const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: '2
               target={post.data.external ? '_blank' : undefined}
               rel={post.data.external ? 'noopener' : undefined}
             >
-              <div class="pc-meta">
-                <time datetime={post.data.date.toISOString()}>{fmt(post.data.date)}</time>
-                <span class="card-tag">{post.data.tag}</span>
-                {post.data.external && <span class="card-ext">External ↗</span>}
+              <div
+                class="pc-thumb"
+                style={`--from:${t.from};--to:${t.to};--accent:${t.accent};`}
+              >
+                <span class="pc-thumb-glyph">{t.glyph}</span>
+                <span class="pc-thumb-tag">{post.data.tag}</span>
               </div>
-              <h2>{post.data.title}</h2>
-              <p>{post.data.description}</p>
-              <span class="read-more">{post.data.external ? 'Read on Lambda by Blinkit →' : 'Read →'}</span>
+              <div class="pc-body">
+                <div class="pc-meta">
+                  <time datetime={post.data.date.toISOString()}>{fmt(post.data.date)}</time>
+                  {post.data.external && <span class="card-ext">External ↗</span>}
+                </div>
+                <h2>{post.data.title}</h2>
+                <p>{post.data.description}</p>
+                <span class="read-more">{post.data.external ? 'Read on Lambda by Blinkit →' : 'Read →'}</span>
+              </div>
             </a>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </section>
   </main>
