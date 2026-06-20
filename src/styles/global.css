@@ -544,6 +544,18 @@ section { padding: 5rem 0; }
 
 .tl-role .co { color: var(--amber); }
 
+.tl-head { display: flex; align-items: center; gap: 0.7rem; }
+
+.tl-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #fff;
+  padding: 3px;
+  flex-shrink: 0;
+}
+
 .tl-note {
   font-family: var(--font-mono);
   font-size: 0.85rem;
