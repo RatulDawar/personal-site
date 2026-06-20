@@ -7,13 +7,6 @@ const experience = [
   { date: 'Jan 2024 — Jun 2024', role: 'SDE Intern', co: 'Media.Net', note: 'Converted to full-time SDE 1' },
 ];
 
-const openSource = [
-  { name: 'Apache Hudi', lang: 'Java', desc: 'Fixed a critical deadlock in the Hudi connector by migrating split loading from Runnable to a ResumableTask architecture, preventing thread-pool exhaustion on large partitioned tables.' },
-  { name: 'Apache DataFusion', lang: 'Rust', desc: 'Contributed improvements and fixes to query execution and optimization across the engine.' },
-  { name: 'Arroyo Systems', lang: 'Rust', desc: 'Added a row-time method in Arroyo SQL, nodeSelector & tolerations to the Helm chart, and helped fix Vec<&str> return-type support.' },
-  { name: 'Trino & StarRocks', lang: 'Helm · C++', desc: 'Enhanced Trino Helm deployment configuration and contributed improvements to the StarRocks query engine.' },
-];
-
 const profiles = [
   { badge: 'CF', rank: 'Expert · 1645', sub: '960+ problems solved', href: 'https://codeforces.com/' , platform: 'Codeforces' },
   { badge: 'LC', rank: 'Knight · 2072', sub: '825+ problems solved', href: 'https://leetcode.com/', platform: 'LeetCode' },
@@ -110,17 +103,18 @@ const achievements = [
       <div class="section-head reveal">
         <span class="num">03</span><h2>Open source</h2><span class="rule"></span>
       </div>
-      <div class="cards">
-        {openSource.map((o) => (
-          <div class="os-card reveal">
-            <div class="top">
-              <h3>{o.name}</h3>
-              <span class="lang">{o.lang}</span>
-            </div>
-            <p>{o.desc}</p>
+      <a class="os-teaser reveal" href="/opensource">
+        <div>
+          <h3>Contributions across the data ecosystem</h3>
+          <p>Pull requests to Apache DataFusion, Trino, Hudi, Arroyo, StarRocks, and more.</p>
+        </div>
+        <div class="os-teaser-cta">
+          <div class="chips">
+            {['DataFusion', 'Trino', 'Hudi', 'Arroyo', 'StarRocks'].map((s) => <span class="chip">{s}</span>)}
           </div>
-        ))}
-      </div>
+          <span class="read-more">View all PRs →</span>
+        </div>
+      </a>
     </section>
 
     <section id="profiles">

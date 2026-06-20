@@ -1,0 +1,124 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const projects = [
+  {
+    name: 'Apache DataFusion',
+    lang: 'Rust',
+    desc: 'Query execution and Parquet scan optimizations.',
+    prs: [
+      { n: 22857, t: 'Skip loading Parquet page index when row-group statistics already prove it cannot prune', s: 'merged' },
+      { n: 21898, t: 'Stabilize parquet output_rows_skew sqllogictest with WITH ORDER', s: 'merged' },
+      { n: 21750, t: 'Add tests for spill file sizes to verify View GC', s: 'merged' },
+      { n: 20627, t: 'Fix FileStream scanning_total to include sync next-file open time', s: 'merged' },
+    ],
+    base: 'https://github.com/apache/datafusion/pull/',
+  },
+  {
+    name: 'Trino',
+    lang: 'Java',
+    desc: 'Connector reliability and filesystem caching.',
+    prs: [
+      { n: 27268, t: 'Fix deadlock issue in the Hudi plugin', s: 'open' },
+      { n: 27277, t: 'Make filesystem cache table aware (WIP)', s: 'open' },
+    ],
+    base: 'https://github.com/trinodb/trino/pull/',
+  },
+  {
+    name: 'Apache Hudi',
+    lang: 'Java',
+    desc: 'Trino–Hudi plugin compatibility.',
+    prs: [
+      { n: 14299, t: 'Update dependencies to make trino-hudi-plugin compatible with Trino 478', s: 'open' },
+    ],
+    base: 'https://github.com/apache/hudi/pull/',
+  },
+  {
+    name: 'Arroyo',
+    lang: 'Rust',
+    desc: 'SQL features and Kubernetes deployment support for the streaming engine.',
+    prs: [
+      { n: 858, t: 'Add row_time UDF', s: 'merged' },
+      { n: 850, t: 'Add nodeSelector and tolerations support for worker pods', s: 'merged' },
+      { n: 897, t: 'Apache Iggy connector', s: 'open' },
+    ],
+    base: 'https://github.com/ArroyoSystems/arroyo/pull/',
+  },
+  {
+    name: 'StarRocks',
+    lang: 'C++',
+    desc: 'Iceberg integration and query engine fixes.',
+    prs: [
+      { n: 68764, t: 'Strip trailing slash from repository location path', s: 'merged' },
+      { n: 69398, t: 'Add MERGE INTO support for Iceberg tables', s: 'open' },
+    ],
+    base: 'https://github.com/StarRocks/starrocks/pull/',
+  },
+  {
+    name: 'Trino Helm Charts',
+    lang: 'Helm',
+    desc: 'Observability for the Trino Gateway chart.',
+    prs: [
+      { n: 394, t: 'Add ServiceMonitor support to gateway chart', s: 'merged' },
+    ],
+    base: 'https://github.com/trinodb/charts/pull/',
+  },
+];
+
+const total = projects.reduce((a, p) => a + p.prs.length, 0);
+const merged = projects.reduce((a, p) => a + p.prs.filter((x) => x.s === 'merged').length, 0);
+---
+
+<Layout
+  title="Open Source · Ratul Dawar"
+  description="Open-source contributions by Ratul Dawar across Apache DataFusion, Trino, Hudi, Arroyo, StarRocks, and more."
+>
+  <main>
+    <section class="hero os-hero">
+      <p class="eyebrow">Open source</p>
+      <h1>Contributions across<br />the <span class="grad">data ecosystem</span></h1>
+      <p class="lede">
+        Pull requests to the engines I work with every day — query planners, streaming runtimes,
+        connectors, and the infrastructure around them.
+      </p>
+      <div class="stats">
+        <div class="stat reveal"><div class="val"><span data-count={total} data-suffix="+">0</span></div><div class="label">Pull requests</div></div>
+        <div class="stat reveal"><div class="val"><span data-count={merged}>0</span></div><div class="label">Merged upstream</div></div>
+        <div class="stat reveal"><div class="val"><span data-count={projects.length}>0</span></div><div class="label">Projects</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="4" data-suffix="">0</span></div><div class="label">Languages</div></div>
+      </div>
+    </section>
+
+    {projects.map((p, i) => (
+      <section class="os-project reveal" style={i === 0 ? 'padding-top:1rem;' : ''}>
+        <div class="os-project-head">
+          <div>
+            <h2>{p.name}</h2>
+            <p>{p.desc}</p>
+          </div>
+          <span class="lang">{p.lang}</span>
+        </div>
+        <ul class="pr-list">
+          {p.prs.map((pr) => (
+            <li>
+              <a class="pr" href={p.base + pr.n} target="_blank" rel="noopener">
+                <span class={`pr-state ${pr.s}`}>{pr.s}</span>
+                <span class="pr-title">{pr.t}</span>
+                <span class="pr-num">#{pr.n}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    <section class="contact reveal">
+      <h2>More on <span class="grad">GitHub</span>.</h2>
+      <p>Personal projects, experiments, and the full commit history live on my profile.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a href="https://github.com/RatulDawar" target="_blank" rel="noopener" class="btn btn-primary">@RatulDawar</a>
+        <a href="/" class="btn btn-ghost">← Back home</a>
+      </div>
+    </section>
+  </main>
+</Layout>
