@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 340" font-family="ui-sans-serif, system-ui, sans-serif">
+  <rect width="900" height="340" fill="#fafafa"/>
+  <text x="450" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#111827">Before vs after: when page index I/O runs</text>
+
+  <text x="225" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#b91c1c">Before</text>
+  <rect x="40" y="85" width="370" height="210" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+  <g font-size="13" fill="#7f1d1d">
+    <text x="60" y="118">1. Load footer metadata</text>
+    <text x="60" y="148">2. Load page index (extra tail I/O)</text>
+    <text x="60" y="178">3. Prune row groups with statistics</text>
+    <text x="60" y="208">4. Discover all survivors fully matched</text>
+    <text x="60" y="238">5. Page index never narrows scan further</text>
+    <text x="60" y="275" font-weight="700">Result: wasted page index read</text>
+  </g>
+
+  <text x="675" y="68" text-anchor="middle" font-size="16" font-weight="700" fill="#047857">After (merged)</text>
+  <rect x="490" y="85" width="370" height="210" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+  <g font-size="13" fill="#065f46">
+    <text x="510" y="118">1. Load footer metadata</text>
+    <text x="510" y="148">2. Prune row groups with statistics</text>
+    <text x="510" y="178">3. If any survivor not fully matched � load page index</text>
+    <text x="510" y="208">4. Else skip page index I/O entirely</text>
+    <text x="510" y="238">5. Continue to bloom filters + reader build</text>
+    <text x="510" y="275" font-weight="700">Result: same rows, less metadata I/O</text>
+  </g>
+
+  <rect x="330" y="130" width="240" height="120" rx="8" fill="#fff" stroke="#64748b"/>
+  <text x="450" y="158" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">Example predicate</text>
+  <text x="450" y="182" text-anchor="middle" font-size="12" fill="#475569">WHERE col IS NOT NULL</text>
+  <text x="450" y="204" text-anchor="middle" font-size="12" fill="#475569">on a non-null column</text>
+  <text x="450" y="232" text-anchor="middle" font-size="12" fill="#059669">All rows already proven in</text>
+  <text x="450" y="252" text-anchor="middle" font-size="12" fill="#059669">row-group statistics</text>
+</svg>

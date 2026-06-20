@@ -1,0 +1,1330 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="646" onload="init(evt)" viewBox="0 0 1200 646" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="646.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Mutex lock/add (1M x 8 threads)</text>
+<text id="details" x="10.00" y="629" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="629" > </text>
+<g id="frames">
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::entry (10,672,421 samples, 0.02%)</title><rect x="1189.8" y="565" width="0.2" height="15.0" fill="rgb(227,105,25)" rx="2" ry="2" />
+<text  x="1192.82" y="575.5" ></text>
+</g>
+<g >
+<title>malloc (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="53" width="0.2" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1189.04" y="63.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (9,527,144 samples, 0.01%)</title><rect x="1187.4" y="181" width="0.1" height="15.0" fill="rgb(252,220,52)" rx="2" ry="2" />
+<text  x="1190.36" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;toml::value::Value as core::clone::Clone&gt;::clone (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="149" width="0.2" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="1189.04" y="159.5" ></text>
+</g>
+<g >
+<title>asn1_template_noexp_d2i (21,894,649 samples, 0.03%)</title><rect x="1188.4" y="245" width="0.3" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="1191.36" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::collections::btree::map::BTreeMap&lt;alloc::string::String, alloc::collections::btree::map::BTreeMap&lt;alloc::string::String, cargo_util_schemas::manifest::TomlLint&gt;&gt;&gt;::insert (9,681,987 samples, 0.01%)</title><rect x="1186.9" y="213" width="0.1" height="15.0" fill="rgb(231,122,29)" rx="2" ry="2" />
+<text  x="1189.87" y="223.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo_util_schemas::manifest::TomlManifest&gt; (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="277" width="0.2" height="15.0" fill="rgb(220,69,16)" rx="2" ry="2" />
+<text  x="1191.03" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::collections::btree::map::BTreeMap&lt;_, _, _&gt; as core::clone::Clone&gt;::clone::clone_subtree::&lt;alloc::borrow::Cow&lt;str&gt;, alloc::vec::Vec&lt;alloc::borrow::Cow&lt;str&gt;&gt;, alloc::alloc::Global&gt; (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="133" width="0.1" height="15.0" fill="rgb(220,72,17)" rx="2" ry="2" />
+<text  x="1190.86" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::map::HashMap&lt;cargo::core::package_id::PackageId, cargo::core::summary::Summary, std::hash::random::RandomState&gt;&gt;::insert (10,549,254 samples, 0.01%)</title><rect x="1186.4" y="229" width="0.1" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="1189.36" y="239.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;rusqlite::statement::Statement&gt; (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="277" width="0.2" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="1190.68" y="287.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_output_metadata::output_metadata (78,737,055 samples, 0.11%)</title><rect x="1186.9" y="389" width="1.3" height="15.0" fill="rgb(207,9,2)" rx="2" ry="2" />
+<text  x="1189.87" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;core::hash::sip::Sip13Rounds&gt; as core::hash::Hasher&gt;::write (10,549,254 samples, 0.01%)</title><rect x="1186.4" y="197" width="0.1" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="1189.36" y="207.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start::&lt; (209,945,838 samples, 0.30%)</title><rect x="1185.6" y="469" width="3.5" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="1188.57" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::GenericShunt&lt;core::iter::adapters::filter_map::FilterMap&lt;alloc::vec::into_iter::IntoIter&lt; (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="277" width="0.1" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="1190.86" y="287.5" ></text>
+</g>
+<g >
+<title>malloc (9,527,144 samples, 0.01%)</title><rect x="1187.4" y="165" width="0.1" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1190.36" y="175.5" ></text>
+</g>
+<g >
+<title>OSSL_DECODER_from_bio (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="165" width="0.2" height="15.0" fill="rgb(211,27,6)" rx="2" ry="2" />
+<text  x="1191.55" y="175.5" ></text>
+</g>
+<g >
+<title>EVP_DecodeUpdate (11,118,247 samples, 0.02%)</title><rect x="1188.9" y="245" width="0.2" height="15.0" fill="rgb(238,152,36)" rx="2" ry="2" />
+<text  x="1191.90" y="255.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::read_manifest (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="261" width="0.6" height="15.0" fill="rgb(232,128,30)" rx="2" ry="2" />
+<text  x="1189.87" y="271.5" ></text>
+</g>
+<g >
+<title>thread_start (70,118,999,602 samples, 99.57%)</title><rect x="10.0" y="565" width="1175.0" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="13.03" y="575.5" >thread_start</text>
+</g>
+<g >
+<title>[unknown] (1,743,078,961 samples, 2.48%)</title><rect x="1113.3" y="405" width="29.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1116.26" y="415.5" >[u..</text>
+</g>
+<g >
+<title>spki2typespki_decode (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="133" width="0.2" height="15.0" fill="rgb(244,182,43)" rx="2" ry="2" />
+<text  x="1191.55" y="143.5" ></text>
+</g>
+<g >
+<title>anstream::adapter::strip::next_bytes (9,493,534 samples, 0.01%)</title><rect x="1186.7" y="325" width="0.2" height="15.0" fill="rgb(214,43,10)" rx="2" ry="2" />
+<text  x="1189.71" y="335.5" ></text>
+</g>
+<g >
+<title>std::sys::backtrace::__rust_begin_short_backtrace (70,118,933,380 samples, 99.57%)</title><rect x="10.0" y="501" width="1175.0" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="13.03" y="511.5" >std::sys::backtrace::__rust_begin_short_backtrace</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo::core::compiler::fingerprint::Fingerprint&gt; (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="261" width="0.2" height="15.0" fill="rgb(223,83,19)" rx="2" ry="2" />
+<text  x="1188.73" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;alloc::collections::btree::map::BTreeMap&lt;cargo_util_schemas::manifest::FeatureName, alloc::vec::Vec&lt;alloc::string::String&gt;&gt;&gt; (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="261" width="0.2" height="15.0" fill="rgb(249,204,48)" rx="2" ry="2" />
+<text  x="1191.03" y="271.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start_internal (209,945,838 samples, 0.30%)</title><rect x="1185.6" y="485" width="3.5" height="15.0" fill="rgb(246,191,45)" rx="2" ry="2" />
+<text  x="1188.57" y="495.5" ></text>
+</g>
+<g >
+<title>all (70,418,518,102 samples, 100%)</title><rect x="10.0" y="597" width="1180.0" height="15.0" fill="rgb(213,39,9)" rx="2" ry="2" />
+<text  x="13.00" y="607.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo::core::compiler::fingerprint::Fingerprint&gt; (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="229" width="0.2" height="15.0" fill="rgb(223,83,19)" rx="2" ry="2" />
+<text  x="1188.73" y="239.5" ></text>
+</g>
+<g >
+<title>__aarch64_cas4_acq (3,501,688,851 samples, 4.97%)</title><rect x="963.0" y="469" width="58.7" height="15.0" fill="rgb(231,124,29)" rx="2" ry="2" />
+<text  x="965.99" y="479.5" >__aarc..</text>
+</g>
+<g >
+<title>ssl_create_cipher_list (10,201,706 samples, 0.01%)</title><rect x="1188.2" y="325" width="0.2" height="15.0" fill="rgb(212,32,7)" rx="2" ry="2" />
+<text  x="1191.19" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::RawTable&lt; (9,633,253 samples, 0.01%)</title><rect x="1185.6" y="213" width="0.1" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="1188.57" y="223.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;rustup::dist::manifest::TargetedPackage&gt; (10,791,207 samples, 0.02%)</title><rect x="1189.1" y="549" width="0.2" height="15.0" fill="rgb(251,214,51)" rx="2" ry="2" />
+<text  x="1192.08" y="559.5" ></text>
+</g>
+<g >
+<title>core::ops::function::FnMut::call_mut (10,887,854 samples, 0.02%)</title><rect x="1189.6" y="565" width="0.2" height="15.0" fill="rgb(217,56,13)" rx="2" ry="2" />
+<text  x="1192.64" y="575.5" ></text>
+</g>
+<g >
+<title>[unknown] (243,523,988 samples, 0.35%)</title><rect x="1185.5" y="565" width="4.1" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1188.54" y="575.5" ></text>
+</g>
+<g >
+<title>main (209,945,838 samples, 0.30%)</title><rect x="1185.6" y="501" width="3.5" height="15.0" fill="rgb(243,179,42)" rx="2" ry="2" />
+<text  x="1188.57" y="511.5" ></text>
+</g>
+<g >
+<title>&lt;std::sync::once::Once&gt;::call_once::&lt;libgit2_sys::init::{closure#0}&gt;::{closure#0} (53,162,789 samples, 0.08%)</title><rect x="1188.2" y="389" width="0.9" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="1191.19" y="399.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::targets::normalize_tests (9,687,251 samples, 0.01%)</title><rect x="1187.0" y="229" width="0.2" height="15.0" fill="rgb(247,195,46)" rx="2" ry="2" />
+<text  x="1190.04" y="239.5" ></text>
+</g>
+<g >
+<title>openssl_init (53,162,789 samples, 0.08%)</title><rect x="1188.2" y="357" width="0.9" height="15.0" fill="rgb(246,190,45)" rx="2" ry="2" />
+<text  x="1191.19" y="367.5" ></text>
+</g>
+<g >
+<title>cargo::core::resolver::activate_deps_loop (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="229" width="0.2" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="1189.54" y="239.5" ></text>
+</g>
+<g >
+<title>cargo::core::compiler::compile (9,633,253 samples, 0.01%)</title><rect x="1185.6" y="245" width="0.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1188.57" y="255.5" ></text>
+</g>
+<g >
+<title>cargo::ops::resolve::resolve_ws_with_opts (69,274,888 samples, 0.10%)</title><rect x="1186.9" y="373" width="1.1" height="15.0" fill="rgb(221,73,17)" rx="2" ry="2" />
+<text  x="1189.87" y="383.5" ></text>
+</g>
+<g >
+<title>toml_edit::parser::document::parse_keyval (10,887,854 samples, 0.02%)</title><rect x="1189.3" y="549" width="0.1" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="1192.26" y="559.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::RegistrySource&gt;::get_pkg (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="213" width="0.5" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1188.88" y="223.5" ></text>
+</g>
+<g >
+<title>__libc_start_main@@GLIBC_2.34 (211,310,965 samples, 0.30%)</title><rect x="1185.5" y="533" width="3.6" height="15.0" fill="rgb(229,113,27)" rx="2" ry="2" />
+<text  x="1188.54" y="543.5" ></text>
+</g>
+<g >
+<title>cfree@GLIBC_2.17 (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="181" width="0.2" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="1188.73" y="191.5" ></text>
+</g>
+<g >
+<title>x509_pubkey_ex_d2i_ex (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="197" width="0.2" height="15.0" fill="rgb(222,81,19)" rx="2" ry="2" />
+<text  x="1191.55" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (21,167,579 samples, 0.03%)</title><rect x="1185.0" y="565" width="0.4" height="15.0" fill="rgb(234,135,32)" rx="2" ry="2" />
+<text  x="1188.01" y="575.5" ></text>
+</g>
+<g >
+<title>&lt;toml::value::Value as core::clone::Clone&gt;::clone (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="117" width="0.2" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="1189.04" y="127.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_compile::compile_ws (68,513,565 samples, 0.10%)</title><rect x="1185.6" y="325" width="1.1" height="15.0" fill="rgb(247,197,47)" rx="2" ry="2" />
+<text  x="1188.57" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::core::IndexMapCore&lt;serde_spanned::spanned::Spanned&lt;alloc::borrow::Cow&lt;str&gt;&gt;, serde_spanned::spanned::Spanned&lt;toml::de::parser::devalue::DeValue&gt;&gt;&gt;::push_entry (9,527,144 samples, 0.01%)</title><rect x="1187.4" y="197" width="0.1" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="1190.36" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::collections::btree::map::BTreeMap&lt;alloc::borrow::Cow&lt;str&gt;, alloc::vec::Vec&lt;alloc::borrow::Cow&lt;str&gt;&gt;&gt; as serde_core::de::Deserialize&gt;::deserialize::&lt;&amp;mut serde_json::de::Deserializer&lt;serde_json::read::SliceRead&gt;&gt; (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="69" width="0.2" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="1189.54" y="79.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::global_cache_tracker::DeferredGlobalLastUse&gt;::save (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="309" width="0.2" height="15.0" fill="rgb(227,102,24)" rx="2" ry="2" />
+<text  x="1190.68" y="319.5" ></text>
+</g>
+<g >
+<title>PEM_read_bio_ex (21,066,434 samples, 0.03%)</title><rect x="1188.7" y="277" width="0.4" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="1191.73" y="287.5" ></text>
+</g>
+<g >
+<title>__aarch64_swp4_acq (5,445,924,413 samples, 7.73%)</title><rect x="1021.7" y="469" width="91.2" height="15.0" fill="rgb(205,4,0)" rx="2" ry="2" />
+<text  x="1024.67" y="479.5" >__aarch64_..</text>
+</g>
+<g >
+<title>toml::de::parser::key::on_key (9,666,434 samples, 0.01%)</title><rect x="1186.2" y="149" width="0.2" height="15.0" fill="rgb(239,157,37)" rx="2" ry="2" />
+<text  x="1189.20" y="159.5" ></text>
+</g>
+<g >
+<title>_int_free (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="165" width="0.2" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="1188.73" y="175.5" ></text>
+</g>
+<g >
+<title>std::sys::sync::mutex::futex::Mutex::wake (91,395,763 samples, 0.13%)</title><rect x="1142.5" y="485" width="1.5" height="15.0" fill="rgb(239,158,37)" rx="2" ry="2" />
+<text  x="1145.47" y="495.5" ></text>
+</g>
+<g >
+<title>PEM_X509_INFO_read_bio_ex (42,961,083 samples, 0.06%)</title><rect x="1188.4" y="293" width="0.7" height="15.0" fill="rgb(240,163,39)" rx="2" ry="2" />
+<text  x="1191.36" y="303.5" ></text>
+</g>
+<g >
+<title>[unknown] (1,743,078,961 samples, 2.48%)</title><rect x="1113.3" y="421" width="29.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1116.26" y="431.5" >[u..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;hashbrown::raw::RawTable&lt; (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="341" width="0.2" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="1191.03" y="351.5" ></text>
+</g>
+<g >
+<title>cargo::ops::lockfile::load_pkg_lockfile (9,948,187 samples, 0.01%)</title><rect x="1187.5" y="341" width="0.2" height="15.0" fill="rgb(236,146,34)" rx="2" ry="2" />
+<text  x="1190.52" y="351.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;std::collections::hash::map::HashMap&lt;cargo::core::compiler::unit::Unit, alloc::sync::Arc&lt;cargo::core::compiler::fingerprint::Fingerprint&gt;&gt;&gt; (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="293" width="0.2" height="15.0" fill="rgb(251,212,50)" rx="2" ry="2" />
+<text  x="1188.73" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::index::IndexSummary&gt;::parse (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="165" width="0.1" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="1190.86" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::sync::Arc&lt;cargo::core::compiler::fingerprint::Fingerprint&gt;&gt;::drop_slow (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="213" width="0.2" height="15.0" fill="rgb(206,8,1)" rx="2" ry="2" />
+<text  x="1188.73" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::RegistrySource&gt;::get_pkg (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="293" width="0.6" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1189.87" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (9,666,434 samples, 0.01%)</title><rect x="1186.2" y="101" width="0.2" height="15.0" fill="rgb(252,220,52)" rx="2" ry="2" />
+<text  x="1189.20" y="111.5" ></text>
+</g>
+<g >
+<title>syscall (2,250,557,019 samples, 3.20%)</title><rect x="1144.0" y="485" width="37.7" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="1147.00" y="495.5" >sys..</text>
+</g>
+<g >
+<title>&lt;cargo::core::package::Downloads&gt;::start (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="341" width="0.6" height="15.0" fill="rgb(251,215,51)" rx="2" ry="2" />
+<text  x="1189.87" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::core::IndexMapCore&lt;alloc::string::String, toml::value::Value&gt; as core::clone::Clone&gt;::clone_from (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="69" width="0.2" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="1189.04" y="79.5" ></text>
+</g>
+<g >
+<title>ossl_asn1_template_free (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="69" width="0.2" height="15.0" fill="rgb(219,67,16)" rx="2" ry="2" />
+<text  x="1191.55" y="79.5" ></text>
+</g>
+<g >
+<title>core::str::converts::from_utf8 (9,687,251 samples, 0.01%)</title><rect x="1187.0" y="181" width="0.2" height="15.0" fill="rgb(224,91,21)" rx="2" ry="2" />
+<text  x="1190.04" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::index::RegistryIndex&gt;::query_inner_with_online (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="117" width="0.2" height="15.0" fill="rgb(238,156,37)" rx="2" ry="2" />
+<text  x="1189.54" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;toml::value::Value as core::clone::Clone&gt;::clone (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="85" width="0.2" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="1189.04" y="95.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::registry::PackageRegistry as cargo::core::registry::Registry&gt;::query (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="245" width="0.1" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="1190.86" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::index::IndexSummary&gt;::parse (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="85" width="0.2" height="15.0" fill="rgb(218,63,15)" rx="2" ry="2" />
+<text  x="1189.54" y="95.5" ></text>
+</g>
+<g >
+<title>core::ops::function::FnOnce::call_once{{vtable.shim}} (70,118,933,380 samples, 99.57%)</title><rect x="10.0" y="517" width="1175.0" height="15.0" fill="rgb(226,100,24)" rx="2" ry="2" />
+<text  x="13.03" y="527.5" >core::ops::function::FnOnce::call_once{{vtable.shim}}</text>
+</g>
+<g >
+<title>cargo::core::resolver::activate_deps_loop (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="309" width="0.1" height="15.0" fill="rgb(205,2,0)" rx="2" ry="2" />
+<text  x="1190.86" y="319.5" ></text>
+</g>
+<g >
+<title>sqlite3VdbeDelete (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="245" width="0.2" height="15.0" fill="rgb(252,219,52)" rx="2" ry="2" />
+<text  x="1190.68" y="255.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_compile::compile_with_exec (68,513,565 samples, 0.10%)</title><rect x="1185.6" y="341" width="1.1" height="15.0" fill="rgb(208,13,3)" rx="2" ry="2" />
+<text  x="1188.57" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;toml::de::parser::key::State&gt;::close_key (9,666,434 samples, 0.01%)</title><rect x="1186.2" y="133" width="0.2" height="15.0" fill="rgb(215,50,12)" rx="2" ry="2" />
+<text  x="1189.20" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::package::PackageSet&gt;::download_accessible (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="357" width="0.6" height="15.0" fill="rgb(217,55,13)" rx="2" ry="2" />
+<text  x="1189.87" y="367.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_test::compile_tests (68,513,565 samples, 0.10%)</title><rect x="1185.6" y="373" width="1.1" height="15.0" fill="rgb(241,166,39)" rx="2" ry="2" />
+<text  x="1188.57" y="383.5" ></text>
+</g>
+<g >
+<title>asn1_template_noexp_d2i (11,006,795 samples, 0.02%)</title><rect x="1188.4" y="149" width="0.1" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="1191.36" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::map::HashMap&lt;cargo::core::compiler::unit::Unit, usize, std::hash::random::RandomState&gt;&gt;::insert (9,633,253 samples, 0.01%)</title><rect x="1185.6" y="229" width="0.1" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="1188.57" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;alloc::borrow::Cow&lt;str&gt;&gt; as core::clone::Clone&gt;::clone (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="85" width="0.1" height="15.0" fill="rgb(215,48,11)" rx="2" ry="2" />
+<text  x="1190.86" y="95.5" ></text>
+</g>
+<g >
+<title>start_thread (70,118,999,602 samples, 99.57%)</title><rect x="10.0" y="549" width="1175.0" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="13.03" y="559.5" >start_thread</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo::core::package::PackageSet&gt; (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="357" width="0.2" height="15.0" fill="rgb(233,130,31)" rx="2" ry="2" />
+<text  x="1191.03" y="367.5" ></text>
+</g>
+<g >
+<title>toml_edit::value::Value::decorated (10,533,927 samples, 0.01%)</title><rect x="1189.4" y="549" width="0.2" height="15.0" fill="rgb(208,17,4)" rx="2" ry="2" />
+<text  x="1192.45" y="559.5" ></text>
+</g>
+<g >
+<title>_int_free (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="229" width="0.2" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="1191.03" y="239.5" ></text>
+</g>
+<g >
+<title>[unknown] (2,220,490,984 samples, 3.15%)</title><rect x="1144.5" y="421" width="37.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1147.50" y="431.5" >[un..</text>
+</g>
+<g >
+<title>cargo::ops::resolve::resolve_ws_with_opts (49,668,672 samples, 0.07%)</title><rect x="1185.9" y="293" width="0.8" height="15.0" fill="rgb(221,73,17)" rx="2" ry="2" />
+<text  x="1188.88" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::resolver::dep_cache::RegistryQueryer&gt;::query (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="261" width="0.1" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="1190.86" y="271.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_test::run_benches (68,552,460 samples, 0.10%)</title><rect x="1185.6" y="389" width="1.1" height="15.0" fill="rgb(235,138,33)" rx="2" ry="2" />
+<text  x="1188.57" y="399.5" ></text>
+</g>
+<g >
+<title>toml::de::parser::parse_document (9,948,187 samples, 0.01%)</title><rect x="1187.5" y="293" width="0.2" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="1190.52" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;serde_ignored::TrackedSeed&lt;core::marker::PhantomData&lt;core::option::Option&lt;cargo_util_schemas::manifest::InheritableLints&gt;&gt;, cargo::util::toml::deserialize_toml::{closure#0}&gt; as serde_core::de::DeserializeSeed&gt;::deserialize::&lt;toml::de::deserializer::value::ValueDeserializer&gt; (9,681,987 samples, 0.01%)</title><rect x="1186.9" y="229" width="0.1" height="15.0" fill="rgb(241,165,39)" rx="2" ry="2" />
+<text  x="1189.87" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::collections::btree::map::BTreeMap&lt;_, _, _&gt; as core::clone::Clone&gt;::clone::clone_subtree::&lt;alloc::borrow::Cow&lt;str&gt;, alloc::vec::Vec&lt;alloc::borrow::Cow&lt;str&gt;&gt;, alloc::alloc::Global&gt; (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="117" width="0.1" height="15.0" fill="rgb(220,72,17)" rx="2" ry="2" />
+<text  x="1190.86" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;toml_edit::key::Key as core::clone::Clone&gt;::clone (10,757,344 samples, 0.02%)</title><rect x="1185.4" y="565" width="0.1" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="1188.36" y="575.5" ></text>
+</g>
+<g >
+<title>ASN1_item_free (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="101" width="0.2" height="15.0" fill="rgb(225,93,22)" rx="2" ry="2" />
+<text  x="1191.55" y="111.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo::ops::resolve::WorkspaceResolve&gt; (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="373" width="0.2" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="1191.03" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::rc::Rc&lt;cargo::core::package::PackageInner&gt;&gt;::drop_slow (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="325" width="0.2" height="15.0" fill="rgb(248,200,48)" rx="2" ry="2" />
+<text  x="1191.03" y="335.5" ></text>
+</g>
+<g >
+<title>EVP_DecodeUpdate (9,948,187 samples, 0.01%)</title><rect x="1188.7" y="261" width="0.2" height="15.0" fill="rgb(238,152,36)" rx="2" ry="2" />
+<text  x="1191.73" y="271.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::read_manifest (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="181" width="0.5" height="15.0" fill="rgb(232,128,30)" rx="2" ry="2" />
+<text  x="1188.88" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::GenericShunt&lt;core::iter::adapters::filter_map::FilterMap&lt;alloc::vec::into_iter::IntoIter&lt; (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="197" width="0.2" height="15.0" fill="rgb(254,227,54)" rx="2" ry="2" />
+<text  x="1189.54" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::replaced::ReplacedSource as cargo::sources::source::Source&gt;::query (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="149" width="0.2" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="1189.54" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::global_cache_tracker::DeferredGlobalLastUse&gt;::save_no_error (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="325" width="0.2" height="15.0" fill="rgb(243,177,42)" rx="2" ry="2" />
+<text  x="1190.68" y="335.5" ></text>
+</g>
+<g >
+<title>cfree@GLIBC_2.17 (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="245" width="0.2" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="1191.03" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::RegistrySource as cargo::sources::source::Source&gt;::query (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="133" width="0.2" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="1189.54" y="143.5" ></text>
+</g>
+<g >
+<title>anstream::strip::write_fmt (9,493,534 samples, 0.01%)</title><rect x="1186.7" y="373" width="0.2" height="15.0" fill="rgb(224,87,20)" rx="2" ry="2" />
+<text  x="1189.71" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::sync::Arc&lt;cargo::core::compiler::fingerprint::Fingerprint&gt;&gt;::drop_slow (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="277" width="0.2" height="15.0" fill="rgb(206,8,1)" rx="2" ry="2" />
+<text  x="1188.73" y="287.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_read_manifest::read_package (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="197" width="0.5" height="15.0" fill="rgb(249,205,49)" rx="2" ry="2" />
+<text  x="1188.88" y="207.5" ></text>
+</g>
+<g >
+<title>[unknown] (1,743,078,961 samples, 2.48%)</title><rect x="1113.3" y="453" width="29.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1116.26" y="463.5" >[u..</text>
+</g>
+<g >
+<title>malloc (9,681,987 samples, 0.01%)</title><rect x="1186.9" y="197" width="0.1" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1189.87" y="207.5" ></text>
+</g>
+<g >
+<title>cargo::commands::metadata::exec (88,230,589 samples, 0.13%)</title><rect x="1186.7" y="405" width="1.5" height="15.0" fill="rgb(238,156,37)" rx="2" ry="2" />
+<text  x="1189.71" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::compiler::build_runner::BuildRunner&gt;::compile (18,844,893 samples, 0.03%)</title><rect x="1185.6" y="309" width="0.3" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="1188.57" y="319.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_compile::compile (68,513,565 samples, 0.10%)</title><rect x="1185.6" y="357" width="1.1" height="15.0" fill="rgb(223,83,20)" rx="2" ry="2" />
+<text  x="1188.57" y="367.5" ></text>
+</g>
+<g >
+<title>X509_STORE_set_default_paths_ex (42,961,083 samples, 0.06%)</title><rect x="1188.4" y="341" width="0.7" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="1191.36" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVecInner&lt;_&gt;&gt;::reserve::do_reserve_and_handle::&lt;alloc::alloc::Global&gt; (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="197" width="0.2" height="15.0" fill="rgb(206,8,2)" rx="2" ry="2" />
+<text  x="1190.20" y="207.5" ></text>
+</g>
+<g >
+<title>std::sys::thread::unix::Thread::new::thread_start (70,118,962,620 samples, 99.57%)</title><rect x="10.0" y="533" width="1175.0" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="13.03" y="543.5" >std::sys::thread::unix::Thread::new::thread_start</text>
+</g>
+<g >
+<title>X509_load_cert_crl_file_ex (42,961,083 samples, 0.06%)</title><rect x="1188.4" y="309" width="0.7" height="15.0" fill="rgb(252,217,52)" rx="2" ry="2" />
+<text  x="1191.36" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;&lt;cargo_util_schemas::manifest::TomlManifest as serde_core::de::Deserialize&gt;::deserialize::__Visitor as serde_core::de::Visitor&gt;::visit_map::&lt;serde_ignored::MapAccess&lt;toml::de::deserializer::table::TableMapAccess, cargo::util::toml::deserialize_toml::{closure#0}&gt;&gt; (9,693,954 samples, 0.01%)</title><rect x="1185.9" y="165" width="0.1" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="1188.88" y="175.5" ></text>
+</g>
+<g >
+<title>asn1_template_noexp_d2i (21,894,649 samples, 0.03%)</title><rect x="1188.4" y="213" width="0.3" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="1191.36" y="223.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::to_real_manifest (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="165" width="0.2" height="15.0" fill="rgb(251,212,50)" rx="2" ry="2" />
+<text  x="1189.04" y="175.5" ></text>
+</g>
+<g >
+<title>vdbeFreeOpArray (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="229" width="0.2" height="15.0" fill="rgb(241,167,40)" rx="2" ry="2" />
+<text  x="1190.68" y="239.5" ></text>
+</g>
+<g >
+<title>[unknown] (2,220,490,984 samples, 3.15%)</title><rect x="1144.5" y="437" width="37.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1147.50" y="447.5" >[un..</text>
+</g>
+<g >
+<title>cargo::core::compiler::compile (9,633,253 samples, 0.01%)</title><rect x="1185.6" y="293" width="0.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1188.57" y="303.5" ></text>
+</g>
+<g >
+<title>__libc_start_call_main (211,310,965 samples, 0.30%)</title><rect x="1185.5" y="517" width="3.6" height="15.0" fill="rgb(210,26,6)" rx="2" ry="2" />
+<text  x="1188.54" y="527.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::index::RegistryIndex&gt;::query_inner_with_online (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="197" width="0.1" height="15.0" fill="rgb(238,156,37)" rx="2" ry="2" />
+<text  x="1190.86" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;serde_ignored::TrackedSeed&lt;core::marker::PhantomData&lt;core::option::Option&lt;cargo_util_schemas::manifest::InheritableLints&gt;&gt;, cargo::util::toml::deserialize_toml::{closure#0}&gt; as serde_core::de::DeserializeSeed&gt;::deserialize::&lt;toml::de::deserializer::value::ValueDeserializer&gt; (9,693,954 samples, 0.01%)</title><rect x="1185.9" y="149" width="0.1" height="15.0" fill="rgb(241,165,39)" rx="2" ry="2" />
+<text  x="1188.88" y="159.5" ></text>
+</g>
+<g >
+<title>_int_malloc (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="37" width="0.2" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="1189.04" y="47.5" ></text>
+</g>
+<g >
+<title>OSSL_DECODER_from_data (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="181" width="0.2" height="15.0" fill="rgb(240,165,39)" rx="2" ry="2" />
+<text  x="1191.55" y="191.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::targets::normalize_targets_with_legacy_path (9,687,251 samples, 0.01%)</title><rect x="1187.0" y="213" width="0.2" height="15.0" fill="rgb(218,60,14)" rx="2" ry="2" />
+<text  x="1190.04" y="223.5" ></text>
+</g>
+<g >
+<title>cargo::ops::resolve::resolve_with_previous (20,839,542 samples, 0.03%)</title><rect x="1187.7" y="341" width="0.3" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="1190.68" y="351.5" ></text>
+</g>
+<g >
+<title>_int_malloc (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="53" width="0.1" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="1190.86" y="63.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;serde_spanned::spanned::Spanned&lt;alloc::borrow::Cow&lt;str&gt;&gt;&gt;&gt;::grow_one (9,666,434 samples, 0.01%)</title><rect x="1186.2" y="117" width="0.2" height="15.0" fill="rgb(224,87,20)" rx="2" ry="2" />
+<text  x="1189.20" y="127.5" ></text>
+</g>
+<g >
+<title>_start (211,310,965 samples, 0.30%)</title><rect x="1185.5" y="549" width="3.6" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="1188.54" y="559.5" ></text>
+</g>
+<g >
+<title>std::sys::backtrace::__rust_begin_short_backtrace::&lt;fn (209,945,838 samples, 0.30%)</title><rect x="1185.6" y="453" width="3.5" height="15.0" fill="rgb(253,223,53)" rx="2" ry="2" />
+<text  x="1188.57" y="463.5" ></text>
+</g>
+<g >
+<title>std::sys::sync::once::futex::Once::call (53,162,789 samples, 0.08%)</title><rect x="1188.2" y="405" width="0.9" height="15.0" fill="rgb(251,213,51)" rx="2" ry="2" />
+<text  x="1191.19" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;anstream::fmt::Adapter&lt;anstream::strip::write_fmt::{closure#0}&gt; as core::fmt::Write&gt;::write_str (9,493,534 samples, 0.01%)</title><rect x="1186.7" y="341" width="0.2" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="1189.71" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::replaced::ReplacedSource as cargo::sources::source::Source&gt;::download (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="245" width="0.5" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="1188.88" y="255.5" ></text>
+</g>
+<g >
+<title>cargo::core::compiler::compile (9,633,253 samples, 0.01%)</title><rect x="1185.6" y="277" width="0.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1188.57" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::package::PackageSet&gt;::download_accessible (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="277" width="0.5" height="15.0" fill="rgb(217,55,13)" rx="2" ry="2" />
+<text  x="1188.88" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;rusqlite::Connection&gt;::execute_batch (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="293" width="0.2" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="1190.68" y="303.5" ></text>
+</g>
+<g >
+<title>ossl_asn1_item_embed_free (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="85" width="0.2" height="15.0" fill="rgb(239,157,37)" rx="2" ry="2" />
+<text  x="1191.55" y="95.5" ></text>
+</g>
+<g >
+<title>malloc (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="165" width="0.2" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1190.20" y="175.5" ></text>
+</g>
+<g >
+<title>toml::de::from_str::&lt;cargo_util_schemas::lockfile::TomlLockfile&gt; (9,948,187 samples, 0.01%)</title><rect x="1187.5" y="325" width="0.2" height="15.0" fill="rgb(209,19,4)" rx="2" ry="2" />
+<text  x="1190.52" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;std::hash::random::RandomState as core::hash::BuildHasher&gt;::hash_one::&lt;&amp;cargo::core::package_id::PackageId&gt; (10,549,254 samples, 0.01%)</title><rect x="1186.4" y="213" width="0.1" height="15.0" fill="rgb(230,117,28)" rx="2" ry="2" />
+<text  x="1189.36" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;&lt;cargo_util_schemas::manifest::TomlManifest as serde_core::de::Deserialize&gt;::deserialize::__Visitor as serde_core::de::Visitor&gt;::visit_map::&lt;serde_ignored::MapAccess&lt;toml::de::deserializer::table::TableMapAccess, cargo::util::toml::deserialize_toml::{closure#0}&gt;&gt; (9,681,987 samples, 0.01%)</title><rect x="1186.9" y="245" width="0.1" height="15.0" fill="rgb(214,42,10)" rx="2" ry="2" />
+<text  x="1189.87" y="255.5" ></text>
+</g>
+<g >
+<title>PEM_read_bio_ex (11,118,247 samples, 0.02%)</title><rect x="1188.9" y="261" width="0.2" height="15.0" fill="rgb(245,184,44)" rx="2" ry="2" />
+<text  x="1191.90" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::index::RegistryIndex&gt;::summaries::{closure#1} (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="101" width="0.2" height="15.0" fill="rgb(230,115,27)" rx="2" ry="2" />
+<text  x="1189.54" y="111.5" ></text>
+</g>
+<g >
+<title>cfree@GLIBC_2.17 (10,791,207 samples, 0.02%)</title><rect x="1189.1" y="533" width="0.2" height="15.0" fill="rgb(224,88,21)" rx="2" ry="2" />
+<text  x="1192.08" y="543.5" ></text>
+</g>
+<g >
+<title>ASN1_item_ex_d2i (11,006,795 samples, 0.02%)</title><rect x="1188.4" y="181" width="0.1" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="1191.36" y="191.5" ></text>
+</g>
+<g >
+<title>ossl_spki2typespki_der_decode (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="117" width="0.2" height="15.0" fill="rgb(231,123,29)" rx="2" ry="2" />
+<text  x="1191.55" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::cli::Exec&gt;::exec (156,783,049 samples, 0.22%)</title><rect x="1185.6" y="421" width="2.6" height="15.0" fill="rgb(244,181,43)" rx="2" ry="2" />
+<text  x="1188.57" y="431.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::targets::infer_from_directory (9,687,251 samples, 0.01%)</title><rect x="1187.0" y="197" width="0.2" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="1190.04" y="207.5" ></text>
+</g>
+<g >
+<title>cargo::core::resolver::resolve (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="325" width="0.1" height="15.0" fill="rgb(226,97,23)" rx="2" ry="2" />
+<text  x="1190.86" y="335.5" ></text>
+</g>
+<g >
+<title>cargo (297,937,080 samples, 0.42%)</title><rect x="1185.0" y="581" width="5.0" height="15.0" fill="rgb(228,108,25)" rx="2" ry="2" />
+<text  x="1188.01" y="591.5" ></text>
+</g>
+<g >
+<title>_int_malloc (9,681,987 samples, 0.01%)</title><rect x="1186.9" y="181" width="0.1" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="1189.87" y="191.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::to_real_manifest (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="245" width="0.2" height="15.0" fill="rgb(251,212,50)" rx="2" ry="2" />
+<text  x="1190.20" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::collections::btree::map::BTreeMap&lt;_, _, _&gt; as core::clone::Clone&gt;::clone::clone_subtree::&lt;alloc::borrow::Cow&lt;str&gt;, alloc::vec::Vec&lt;alloc::borrow::Cow&lt;str&gt;&gt;, alloc::alloc::Global&gt; (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="101" width="0.1" height="15.0" fill="rgb(220,72,17)" rx="2" ry="2" />
+<text  x="1190.86" y="111.5" ></text>
+</g>
+<g >
+<title>asn1_item_embed_d2i (21,894,649 samples, 0.03%)</title><rect x="1188.4" y="261" width="0.3" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="1191.36" y="271.5" ></text>
+</g>
+<g >
+<title>[unknown] (2,220,490,984 samples, 3.15%)</title><rect x="1144.5" y="469" width="37.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1147.50" y="479.5" >[un..</text>
+</g>
+<g >
+<title>[unknown] (2,220,490,984 samples, 3.15%)</title><rect x="1144.5" y="453" width="37.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1147.50" y="463.5" >[un..</text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::index::RegistryIndex&gt;::summaries::{closure#1} (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="181" width="0.1" height="15.0" fill="rgb(230,115,27)" rx="2" ry="2" />
+<text  x="1190.86" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;toml::de::deserializer::Deserializer&gt;::parse (9,948,187 samples, 0.01%)</title><rect x="1187.5" y="309" width="0.2" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="1190.52" y="319.5" ></text>
+</g>
+<g >
+<title>sqlite3_finalize (10,456,243 samples, 0.01%)</title><rect x="1187.7" y="261" width="0.2" height="15.0" fill="rgb(228,109,26)" rx="2" ry="2" />
+<text  x="1190.68" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo::core::manifest::Manifest&gt; (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="309" width="0.2" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="1191.03" y="319.5" ></text>
+</g>
+<g >
+<title>cargo::core::resolver::activate (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="213" width="0.2" height="15.0" fill="rgb(253,220,52)" rx="2" ry="2" />
+<text  x="1189.54" y="223.5" ></text>
+</g>
+<g >
+<title>std::sys::sync::mutex::futex::Mutex::lock_contended (28,213,135,359 samples, 40.06%)</title><rect x="669.7" y="485" width="472.8" height="15.0" fill="rgb(245,185,44)" rx="2" ry="2" />
+<text  x="672.70" y="495.5" >std::sys::sync::mutex::futex::Mutex::lock_contended</text>
+</g>
+<g >
+<title>cargo::commands::bench::exec (68,552,460 samples, 0.10%)</title><rect x="1185.6" y="405" width="1.1" height="15.0" fill="rgb(212,34,8)" rx="2" ry="2" />
+<text  x="1188.57" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;toml_parser::lexer::Lexer&gt;::into_vec (9,948,187 samples, 0.01%)</title><rect x="1187.5" y="277" width="0.2" height="15.0" fill="rgb(232,125,30)" rx="2" ry="2" />
+<text  x="1190.52" y="287.5" ></text>
+</g>
+<g >
+<title>asn1_item_embed_d2i (21,894,649 samples, 0.03%)</title><rect x="1188.4" y="229" width="0.3" height="15.0" fill="rgb(206,5,1)" rx="2" ry="2" />
+<text  x="1191.36" y="239.5" ></text>
+</g>
+<g >
+<title>__aarch64_cas4_acq (15,156,197,470 samples, 21.52%)</title><rect x="52.3" y="485" width="254.0" height="15.0" fill="rgb(231,124,29)" rx="2" ry="2" />
+<text  x="55.28" y="495.5" >__aarch64_cas4_acq</text>
+</g>
+<g >
+<title>&lt;cargo::core::package::Downloads&gt;::start (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="261" width="0.5" height="15.0" fill="rgb(251,215,51)" rx="2" ry="2" />
+<text  x="1188.88" y="271.5" ></text>
+</g>
+<g >
+<title>syscall (1,762,677,869 samples, 2.50%)</title><rect x="1112.9" y="469" width="29.6" height="15.0" fill="rgb(234,136,32)" rx="2" ry="2" />
+<text  x="1115.93" y="479.5" >sy..</text>
+</g>
+<g >
+<title>&lt;serde_ignored::MapAccess&lt;toml::de::deserializer::table::TableMapAccess, cargo::util::toml::deserialize_toml::{closure#0}&gt; as serde_core::de::MapAccess&gt;::next_value_seed::&lt;core::marker::PhantomData&lt;alloc::collections::btree::map::BTreeMap&lt;alloc::string::String, cargo_util_schemas::manifest::TomlLint&gt;&gt;&gt; (9,693,954 samples, 0.01%)</title><rect x="1185.9" y="133" width="0.1" height="15.0" fill="rgb(251,212,50)" rx="2" ry="2" />
+<text  x="1188.88" y="143.5" ></text>
+</g>
+<g >
+<title>toml::de::parser::parse_document (9,666,434 samples, 0.01%)</title><rect x="1186.2" y="165" width="0.2" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="1189.20" y="175.5" ></text>
+</g>
+<g >
+<title>by_file_ctrl_ex (42,961,083 samples, 0.06%)</title><rect x="1188.4" y="325" width="0.7" height="15.0" fill="rgb(219,68,16)" rx="2" ry="2" />
+<text  x="1191.36" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVecInner&gt;::finish_grow (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="181" width="0.2" height="15.0" fill="rgb(252,220,52)" rx="2" ry="2" />
+<text  x="1190.20" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::sync::Arc&lt;cargo::core::compiler::fingerprint::Fingerprint&gt;&gt;::drop_slow (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="245" width="0.2" height="15.0" fill="rgb(206,8,1)" rx="2" ry="2" />
+<text  x="1188.73" y="255.5" ></text>
+</g>
+<g >
+<title>malloc (9,666,434 samples, 0.01%)</title><rect x="1186.2" y="85" width="0.2" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1189.20" y="95.5" ></text>
+</g>
+<g >
+<title>cargo::sources::registry::index::index_package_to_summary (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="149" width="0.1" height="15.0" fill="rgb(241,169,40)" rx="2" ry="2" />
+<text  x="1190.86" y="159.5" ></text>
+</g>
+<g >
+<title>cargo::util::toml::normalize_toml (9,687,251 samples, 0.01%)</title><rect x="1187.0" y="245" width="0.2" height="15.0" fill="rgb(238,151,36)" rx="2" ry="2" />
+<text  x="1190.04" y="255.5" ></text>
+</g>
+<g >
+<title>_int_malloc (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="149" width="0.2" height="15.0" fill="rgb(215,47,11)" rx="2" ry="2" />
+<text  x="1190.20" y="159.5" ></text>
+</g>
+<g >
+<title>cargo::core::resolver::activate (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="293" width="0.1" height="15.0" fill="rgb(253,220,52)" rx="2" ry="2" />
+<text  x="1190.86" y="303.5" ></text>
+</g>
+<g >
+<title>decoder_process (10,887,854 samples, 0.02%)</title><rect x="1188.5" y="149" width="0.2" height="15.0" fill="rgb(205,1,0)" rx="2" ry="2" />
+<text  x="1191.55" y="159.5" ></text>
+</g>
+<g >
+<title>cargo::ops::resolve::resolve_with_registry (30,787,729 samples, 0.04%)</title><rect x="1187.5" y="357" width="0.5" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="1190.52" y="367.5" ></text>
+</g>
+<g >
+<title>atomic_vs_mutex (70,120,581,022 samples, 99.58%)</title><rect x="10.0" y="581" width="1175.0" height="15.0" fill="rgb(229,111,26)" rx="2" ry="2" />
+<text  x="13.00" y="591.5" >atomic_vs_mutex</text>
+</g>
+<g >
+<title>&lt;cargo::core::resolver::dep_cache::RegistryQueryer&gt;::query (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="181" width="0.2" height="15.0" fill="rgb(254,226,54)" rx="2" ry="2" />
+<text  x="1189.54" y="191.5" ></text>
+</g>
+<g >
+<title>cargo::core::compiler::compile (9,633,253 samples, 0.01%)</title><rect x="1185.6" y="261" width="0.1" height="15.0" fill="rgb(223,84,20)" rx="2" ry="2" />
+<text  x="1188.57" y="271.5" ></text>
+</g>
+<g >
+<title>cargo::core::resolver::resolve (20,817,450 samples, 0.03%)</title><rect x="1186.4" y="245" width="0.3" height="15.0" fill="rgb(226,97,23)" rx="2" ry="2" />
+<text  x="1189.36" y="255.5" ></text>
+</g>
+<g >
+<title>malloc_consolidate (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="213" width="0.2" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="1191.03" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::collections::btree::map::BTreeMap&lt;cargo::util::interning::InternedString, alloc::vec::Vec&lt;cargo::util::interning::InternedString&gt;&gt; as core::iter::traits::collect::FromIterator&lt; (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="229" width="0.2" height="15.0" fill="rgb(247,196,46)" rx="2" ry="2" />
+<text  x="1190.20" y="239.5" ></text>
+</g>
+<g >
+<title>cargo::ops::resolve::resolve_with_previous (20,817,450 samples, 0.03%)</title><rect x="1186.4" y="261" width="0.3" height="15.0" fill="rgb(210,25,6)" rx="2" ry="2" />
+<text  x="1189.36" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::core::IndexMapCore&lt;alloc::string::String, toml::value::Value&gt; as core::clone::Clone&gt;::clone_from (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="101" width="0.2" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="1189.04" y="111.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::replaced::ReplacedSource as cargo::sources::source::Source&gt;::query (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="229" width="0.1" height="15.0" fill="rgb(235,139,33)" rx="2" ry="2" />
+<text  x="1190.86" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::RegistrySource as cargo::sources::source::Source&gt;::query (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="213" width="0.1" height="15.0" fill="rgb(248,201,48)" rx="2" ry="2" />
+<text  x="1190.86" y="223.5" ></text>
+</g>
+<g >
+<title>asn1_template_noexp_d2i (11,006,795 samples, 0.02%)</title><rect x="1188.4" y="165" width="0.1" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="1191.36" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::RegistrySource as cargo::sources::source::Source&gt;::download (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="309" width="0.6" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="1189.87" y="319.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_read_manifest::read_package (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="277" width="0.6" height="15.0" fill="rgb(249,205,49)" rx="2" ry="2" />
+<text  x="1189.87" y="287.5" ></text>
+</g>
+<g >
+<title>git_runtime_init (53,162,789 samples, 0.08%)</title><rect x="1188.2" y="373" width="0.9" height="15.0" fill="rgb(239,159,38)" rx="2" ry="2" />
+<text  x="1191.19" y="383.5" ></text>
+</g>
+<g >
+<title>asn1_check_tlen (11,006,795 samples, 0.02%)</title><rect x="1188.4" y="133" width="0.1" height="15.0" fill="rgb(234,137,32)" rx="2" ry="2" />
+<text  x="1191.36" y="143.5" ></text>
+</g>
+<g >
+<title>ASN1_item_d2i_ex (21,894,649 samples, 0.03%)</title><rect x="1188.4" y="277" width="0.3" height="15.0" fill="rgb(236,146,35)" rx="2" ry="2" />
+<text  x="1191.36" y="287.5" ></text>
+</g>
+<g >
+<title>__aarch64_swp4_rel (21,689,319,701 samples, 30.80%)</title><rect x="306.3" y="485" width="363.4" height="15.0" fill="rgb(215,48,11)" rx="2" ry="2" />
+<text  x="309.25" y="495.5" >__aarch64_swp4_rel</text>
+</g>
+<g >
+<title>toml::de::parser::document::descend_path (9,527,144 samples, 0.01%)</title><rect x="1187.4" y="229" width="0.1" height="15.0" fill="rgb(231,121,29)" rx="2" ry="2" />
+<text  x="1190.36" y="239.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place::&lt;cargo::core::compiler::fingerprint::Fingerprint&gt; (9,211,640 samples, 0.01%)</title><rect x="1185.7" y="197" width="0.2" height="15.0" fill="rgb(223,83,19)" rx="2" ry="2" />
+<text  x="1188.73" y="207.5" ></text>
+</g>
+<g >
+<title>cargo::main (209,945,838 samples, 0.30%)</title><rect x="1185.6" y="437" width="3.5" height="15.0" fill="rgb(209,21,5)" rx="2" ry="2" />
+<text  x="1188.57" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::core::registry::PackageRegistry as cargo::core::registry::Registry&gt;::query (10,268,196 samples, 0.01%)</title><rect x="1186.5" y="165" width="0.2" height="15.0" fill="rgb(253,222,53)" rx="2" ry="2" />
+<text  x="1189.54" y="175.5" ></text>
+</g>
+<g >
+<title>syscall@plt (196,753,068 samples, 0.28%)</title><rect x="1181.7" y="485" width="3.3" height="15.0" fill="rgb(250,210,50)" rx="2" ry="2" />
+<text  x="1184.71" y="495.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::core::IndexMapCore&lt;alloc::string::String, toml::value::Value&gt; as core::clone::Clone&gt;::clone_from (9,490,834 samples, 0.01%)</title><rect x="1186.0" y="133" width="0.2" height="15.0" fill="rgb(252,216,51)" rx="2" ry="2" />
+<text  x="1189.04" y="143.5" ></text>
+</g>
+<g >
+<title>malloc (10,383,299 samples, 0.01%)</title><rect x="1187.9" y="69" width="0.1" height="15.0" fill="rgb(230,119,28)" rx="2" ry="2" />
+<text  x="1190.86" y="79.5" ></text>
+</g>
+<g >
+<title>toml::de::parser::parse_document (9,527,144 samples, 0.01%)</title><rect x="1187.4" y="245" width="0.1" height="15.0" fill="rgb(210,23,5)" rx="2" ry="2" />
+<text  x="1190.36" y="255.5" ></text>
+</g>
+<g >
+<title>cargo::ops::resolve::resolve_with_registry (20,817,450 samples, 0.03%)</title><rect x="1186.4" y="277" width="0.3" height="15.0" fill="rgb(236,143,34)" rx="2" ry="2" />
+<text  x="1189.36" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::core::IndexMapCore&lt;serde_spanned::spanned::Spanned&lt;alloc::borrow::Cow&lt;str&gt;&gt;, serde_spanned::spanned::Spanned&lt;toml::de::parser::devalue::DeValue&gt;&gt;&gt;::insert_unique (9,527,144 samples, 0.01%)</title><rect x="1187.4" y="213" width="0.1" height="15.0" fill="rgb(223,85,20)" rx="2" ry="2" />
+<text  x="1190.36" y="223.5" ></text>
+</g>
+<g >
+<title>[unknown] (1,743,078,961 samples, 2.48%)</title><rect x="1113.3" y="437" width="29.2" height="15.0" fill="rgb(210,24,5)" rx="2" ry="2" />
+<text  x="1116.26" y="447.5" >[u..</text>
+</g>
+<g >
+<title>cargo::init_git (53,162,789 samples, 0.08%)</title><rect x="1188.2" y="421" width="0.9" height="15.0" fill="rgb(206,4,1)" rx="2" ry="2" />
+<text  x="1191.19" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::rc::Rc&lt;cargo_util_schemas::manifest::TomlManifest&gt;&gt;::drop_slow (9,462,167 samples, 0.01%)</title><rect x="1188.0" y="293" width="0.2" height="15.0" fill="rgb(228,110,26)" rx="2" ry="2" />
+<text  x="1191.03" y="303.5" ></text>
+</g>
+<g >
+<title>cargo::ops::cargo_compile::create_bcx (49,668,672 samples, 0.07%)</title><rect x="1185.9" y="309" width="0.8" height="15.0" fill="rgb(217,57,13)" rx="2" ry="2" />
+<text  x="1188.88" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::replaced::ReplacedSource as cargo::sources::source::Source&gt;::download (38,487,159 samples, 0.05%)</title><rect x="1186.9" y="325" width="0.6" height="15.0" fill="rgb(211,31,7)" rx="2" ry="2" />
+<text  x="1189.87" y="335.5" ></text>
+</g>
+<g >
+<title>x509_name_ex_d2i (11,006,795 samples, 0.02%)</title><rect x="1188.4" y="197" width="0.1" height="15.0" fill="rgb(207,13,3)" rx="2" ry="2" />
+<text  x="1191.36" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;cargo::sources::registry::RegistrySource as cargo::sources::source::Source&gt;::download (28,851,222 samples, 0.04%)</title><rect x="1185.9" y="229" width="0.5" height="15.0" fill="rgb(225,94,22)" rx="2" ry="2" />
+<text  x="1188.88" y="239.5" ></text>
+</g>
+<g >
+<title>core::fmt::write (9,493,534 samples, 0.01%)</title><rect x="1186.7" y="357" width="0.2" height="15.0" fill="rgb(221,77,18)" rx="2" ry="2" />
+<text  x="1189.71" y="367.5" ></text>
+</g>
+<g >
+<title>SSL_CTX_set_cipher_list (10,201,706 samples, 0.01%)</title><rect x="1188.2" y="341" width="0.2" height="15.0" fill="rgb(236,145,34)" rx="2" ry="2" />
+<text  x="1191.19" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;anstream::auto::AutoStream&lt;std::io::stdio::Stdout&gt; as std::io::Write&gt;::write_fmt (9,493,534 samples, 0.01%)</title><rect x="1186.7" y="389" width="0.2" height="15.0" fill="rgb(220,70,16)" rx="2" ry="2" />
+<text  x="1189.71" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::fmt::Write&gt;::write_str (9,590,777 samples, 0.01%)</title><rect x="1187.2" y="213" width="0.2" height="15.0" fill="rgb(244,180,43)" rx="2" ry="2" />
+<text  x="1190.20" y="223.5" ></text>
+</g>
+</g>
+</svg>

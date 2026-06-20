@@ -1,0 +1,44 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+---
+
+<Layout
+  title="Blog · Ratul Dawar"
+  description="Writing by Ratul Dawar on Rust, DataFusion, performance, and systems programming."
+>
+  <main>
+    <section class="hero os-hero">
+      <p class="eyebrow">Writing</p>
+      <h1>Notes on <span class="grad">systems & speed</span></h1>
+      <p class="lede">
+        Deep dives into Rust experiments, Apache DataFusion internals, and the mechanics behind real
+        speedups — with benchmarks and flamegraphs, not vibes.
+      </p>
+    </section>
+
+    <section class="os-project" style="padding-top:1rem;">
+      <ul class="post-cards">
+        {posts.map((post) => (
+          <li>
+            <a class="post-card-row reveal" href={`/blog/${post.id}/`}>
+              <div class="pc-meta">
+                <time datetime={post.data.date.toISOString()}>{fmt(post.data.date)}</time>
+                <span class="card-tag">{post.data.tag}</span>
+              </div>
+              <h2>{post.data.title}</h2>
+              <p>{post.data.description}</p>
+              <span class="read-more">Read →</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  </main>
+</Layout>

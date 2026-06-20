@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="ui-sans-serif, system-ui, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#475569"/>
+    </marker>
+  </defs>
+  <rect width="900" height="520" fill="#fafafa"/>
+  <text x="450" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#111827">DataFusion Parquet opener pipeline</text>
+
+  <g font-size="13" font-weight="600">
+    <rect x="330" y="55" width="240" height="42" rx="8" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="450" y="81" text-anchor="middle" fill="#312e81">Start / PruneFile</text>
+
+    <rect x="330" y="115" width="240" height="42" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="450" y="141" text-anchor="middle" fill="#1e3a8a">LoadMetadata (footer)</text>
+
+    <rect x="330" y="175" width="240" height="42" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="450" y="201" text-anchor="middle" fill="#1e3a8a">PrepareFilters</text>
+
+    <rect x="330" y="235" width="240" height="42" rx="8" fill="#fef3c7" stroke="#d97706"/>
+    <text x="450" y="261" text-anchor="middle" fill="#92400e">PruneWithStatistics</text>
+
+    <rect x="330" y="295" width="240" height="42" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-dasharray="6 4"/>
+    <text x="450" y="321" text-anchor="middle" fill="#166534">LoadPageIndex? (optional I/O)</text>
+
+    <rect x="330" y="355" width="240" height="42" rx="8" fill="#fce7f3" stroke="#db2777"/>
+    <text x="450" y="381" text-anchor="middle" fill="#9d174d">LoadBloomFilters</text>
+
+    <rect x="330" y="415" width="240" height="42" rx="8" fill="#fce7f3" stroke="#db2777"/>
+    <text x="450" y="441" text-anchor="middle" fill="#9d174d">PruneWithBloomFilters</text>
+
+    <rect x="330" y="475" width="240" height="42" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="450" y="501" text-anchor="middle" fill="#5b21b6">BuildStream � record batches</text>
+  </g>
+
+  <path d="M450 97 L450 115" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M450 157 L450 175" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M450 217 L450 235" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M450 277 L450 295" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M450 337 L450 355" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M450 397 L450 415" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M450 457 L450 475" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="620" y="285" width="250" height="62" rx="8" fill="#ecfdf5" stroke="#059669"/>
+  <text x="745" y="310" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">PR #22857 gate</text>
+  <text x="745" y="330" text-anchor="middle" font-size="12" fill="#047857">Skip when all surviving row groups</text>
+  <text x="745" y="346" text-anchor="middle" font-size="12" fill="#047857">are fully matched by statistics</text>
+  <path d="M570 316 L620 316" stroke="#059669" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <rect x="40" y="225" width="250" height="130" rx="8" fill="#fff" stroke="#cbd5e1"/>
+  <text x="165" y="250" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">Pruning layers</text>
+  <text x="55" y="275" font-size="12" fill="#475569">1. File stats + partition values</text>
+  <text x="55" y="295" font-size="12" fill="#475569">2. Row-group min/max/null counts</text>
+  <text x="55" y="315" font-size="12" fill="#475569">3. Page index (ColumnIndex)</text>
+  <text x="55" y="335" font-size="12" fill="#475569">4. Bloom filters</text>
+  <path d="M290 290 L330 256" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 3"/>
+</svg>
