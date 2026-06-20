@@ -17,69 +17,129 @@ const achievements = [
   'Ranked <b>383</b> among 25k+ in LeetCode Weekly Contest 284.',
   'Secured rank <b>387</b> among 20k+ in Codeforces Round 798 (Div 2).',
 ];
+
+const blogBase = 'https://ratuldawar.github.io/posts/';
+const recentPosts = [
+  { date: 'Jun 20, 2026', title: 'Inside a DataFusion Parquet Scan: Skipping Page Index I/O', slug: 'datafusion-parquet-page-index-skip' },
+  { date: 'Apr 19, 2026', title: 'Zero-Copy Strings in Apache DataFusion', slug: 'datafusion-string-view-performance' },
+  { date: 'Mar 10, 2026', title: 'Async Runtimes vs Threads in Rust', slug: 'tokio-vs-thread-spawning-which-is-better' },
+  { date: 'Mar 04, 2026', title: 'Atomics vs Mutex in Rust', slug: 'atomics-vs-mutex-contention' },
+  { date: 'Feb 28, 2026', title: 'Cache Padding & False Sharing', slug: 'cache-padding-false-sharing' },
+];
+
+const recentPapers = [
+  { title: 'Spanner: Google\'s Globally-Distributed Database', href: 'https://static.googleusercontent.com/media/research.google.com/en//archive/spanner-osdi2012.pdf' },
+  { title: 'Bigtable: A Distributed Storage System for Structured Data', href: 'https://static.googleusercontent.com/media/research.google.com/en//archive/bigtable-osdi06.pdf' },
+  { title: 'Amazon DynamoDB: A Scalable, Predictably Performant NoSQL Database', href: 'https://www.usenix.org/system/files/atc22-elhemali.pdf' },
+  { title: 'The Google File System', href: 'https://static.googleusercontent.com/media/research.google.com/en//archive/gfs-sosp2003.pdf' },
+  { title: 'SIEVE: An Efficient Turn-Key Eviction Algorithm for Web Caches', href: 'https://www.usenix.org/system/files/nsdi24-zhang-yazhuo.pdf' },
+  { title: 'Attention Is All You Need', href: 'https://arxiv.org/abs/1706.03762' },
+  { title: 'Space/Time Trade-offs in Hash Coding with Allowable Errors (Bloom Filter)', href: 'https://dl.acm.org/doi/10.1145/362686.362692' },
+];
 ---
 
 <Layout>
   <span id="top"></span>
   <main>
-    <section class="hero">
-      <p class="eyebrow">Software Engineer · Blinkit</p>
-      <h1>Hi, I'm <span class="grad">Ratul Dawar</span></h1>
-      <p class="role-line">
-        <span class="prompt">~$</span> <span class="typed" id="typed"></span><span class="cursor">&nbsp;</span>
-      </p>
-      <p class="lede">
-        I build large-scale distributed systems and real-time data platforms — query engines,
-        streaming pipelines, and the infrastructure that moves petabytes without breaking a sweat.
-        Competitive programmer and open-source contributor on the side.
-      </p>
-      <div class="btn-row">
-        <a href="#contact" class="btn btn-primary">Let's talk →</a>
-        <a href="https://github.com/RatulDawar" target="_blank" rel="noopener" class="btn btn-ghost">View GitHub</a>
+    <section class="cover">
+      <div class="cover-text">
+        <p class="eyebrow">Software Engineer · Blinkit</p>
+        <h1>Hey, I am <span class="grad">Ratul</span></h1>
+        <p class="role-line"><span class="typed" id="typed"></span><span class="cursor">&nbsp;</span></p>
+        <p class="lede">
+          I'm a software engineer who loves <span class="hl">distributed systems, databases, and
+          query engines</span>. Currently an SDE 2 at <span class="hl">Blinkit (Eternal)</span>,
+          working across the data and platform stack — streaming pipelines, query routing, and the
+          infrastructure that moves petabytes reliably.
+        </p>
+        <p class="lede">
+          Before Blinkit I was at <span class="hl">Media.Net</span>, and I studied Information
+          Technology at <span class="hl">BIT Mesra</span> (GPA 8.98). On the side I contribute to
+          <span class="hl">Apache DataFusion, Trino, Arroyo, and StarRocks</span>, and grind
+          competitive programming — Expert on Codeforces, Knight on LeetCode.
+        </p>
+
+        <div class="social-row">
+          <a class="social-pill" href="https://github.com/RatulDawar" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub
+          </a>
+          <a class="social-pill" href="https://x.com/ratuldawar18" target="_blank" rel="noopener">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            Twitter
+          </a>
+          <a class="social-pill" href="https://www.linkedin.com/in/ratul-dawar11/" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            LinkedIn
+          </a>
+          <a class="social-pill" href="https://ratuldawar.github.io" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            Blog
+          </a>
+          <a class="social-pill" href="mailto:ratuldawar11@gmail.com">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 6 10 7 10-7"/></svg>
+            Email
+          </a>
+        </div>
       </div>
 
-      <div class="stats">
-        <div class="stat reveal"><div class="val"><span data-count="1645">0</span></div><div class="label">Codeforces rating</div></div>
-        <div class="stat reveal"><div class="val"><span data-count="2072">0</span></div><div class="label">LeetCode rating</div></div>
-        <div class="stat reveal"><div class="val"><span data-count="1785" data-suffix="+">0</span></div><div class="label">Problems solved</div></div>
-        <div class="stat reveal"><div class="val"><span data-count="5" data-suffix="+">0</span></div><div class="label">OSS projects</div></div>
+      <div class="cover-photo reveal">
+        <img src="/profile.jpg" alt="Ratul Dawar" onerror="this.style.display='none';this.nextElementSibling.style.display='grid';" />
+        <div class="photo-fallback" style="display:none;">RD</div>
+      </div>
+    </section>
+
+    <section class="recent">
+      <div class="recent-col reveal">
+        <div class="recent-head">
+          <h2>Recent blog posts</h2>
+          <a href="https://ratuldawar.github.io" target="_blank" rel="noopener" class="more-link">Full archive →</a>
+        </div>
+        <p class="recent-sub">Things I have written recently.</p>
+        <ul class="item-list">
+          {recentPosts.map((p) => (
+            <li>
+              <span class="when">{p.date}</span>
+              <span class="sep">:</span>
+              <a href={blogBase + p.slug + '/'} target="_blank" rel="noopener">{p.title}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div class="recent-col reveal">
+        <div class="recent-head">
+          <h2>Recent papers</h2>
+          <a href="/papershelf" class="more-link">Papershelf →</a>
+        </div>
+        <p class="recent-sub">Papers I have read recently.</p>
+        <ul class="item-list papers">
+          {recentPapers.map((p) => (
+            <li>
+              <span class="bullet">▸</span>
+              <a href={p.href} target="_blank" rel="noopener">{p.title}</a>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
 
     <section id="about">
       <div class="section-head reveal">
-        <span class="num">01</span><h2>About me</h2><span class="rule"></span>
+        <span class="num">01</span><h2>What I work with</h2><span class="rule"></span>
       </div>
-      <div class="about-grid">
-        <div class="reveal">
-          <p>
-            I'm a <span class="hl">Software Engineer at Blinkit (Eternal)</span>, working across the
-            data and platform stack. Before that I interned and worked at Media.Net.
-          </p>
-          <p>
-            My core obsession is <span class="hl">performance and scale</span> — distributed systems,
-            query engines, and real-time data infrastructure. I studied
-            <span class="hl">Information Technology at BIT Mesra</span> (GPA 8.98) and have been hooked
-            on systems ever since.
-          </p>
-          <p>
-            Outside work I contribute to <span class="hl">Apache Hudi, DataFusion, and Arroyo</span>,
-            and grind competitive programming — Expert on Codeforces, Knight on LeetCode.
-          </p>
+      <div class="skills-card reveal">
+        <h3>Languages</h3>
+        <div class="chips">
+          {['C/C++', 'Golang', 'Java', 'Rust', 'SQL', 'Terraform'].map((s) => <span class="chip">{s}</span>)}
         </div>
-        <div class="skills-card reveal">
-          <h3>Languages</h3>
-          <div class="chips">
-            {['C/C++', 'Golang', 'Java', 'Rust', 'SQL', 'Terraform'].map((s) => <span class="chip">{s}</span>)}
-          </div>
-          <h3>Data & Systems</h3>
-          <div class="chips">
-            {['Trino', 'Iceberg', 'Spark', 'StarRocks', 'Debezium', 'Arroyo', 'Flink', 'Kafka'].map((s) => <span class="chip">{s}</span>)}
-          </div>
-          <h3>DevOps</h3>
-          <div class="chips">
-            {['AWS', 'Kubernetes', 'Docker', 'ECS', 'EMR'].map((s) => <span class="chip">{s}</span>)}
-          </div>
+        <h3>Data & Systems</h3>
+        <div class="chips">
+          {['Trino', 'Iceberg', 'Spark', 'StarRocks', 'Debezium', 'Arroyo', 'Flink', 'Kafka'].map((s) => <span class="chip">{s}</span>)}
+        </div>
+        <h3>DevOps</h3>
+        <div class="chips">
+          {['AWS', 'Kubernetes', 'Docker', 'ECS', 'EMR'].map((s) => <span class="chip">{s}</span>)}
         </div>
       </div>
     </section>

@@ -1,0 +1,69 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const papers = [
+  { cat: 'Databases', title: 'Bigtable: A Distributed Storage System for Structured Data', authors: 'Chang, Dean, Ghemawat, et al. — Google', year: '2006', href: 'https://static.googleusercontent.com/media/research.google.com/en//archive/bigtable-osdi06.pdf' },
+  { cat: 'Databases', title: 'The Google File System', authors: 'Ghemawat, Gobioff, Leung — Google', year: '2003', href: 'https://static.googleusercontent.com/media/research.google.com/en//archive/gfs-sosp2003.pdf' },
+  { cat: 'Databases', title: 'Amazon DynamoDB: A Scalable, Predictably Performant NoSQL Database', authors: 'Elhemali, Gallagher, et al. — AWS', year: '2022', href: 'https://www.usenix.org/system/files/atc22-elhemali.pdf' },
+  { cat: 'Distributed Systems', title: "Spanner: Google's Globally-Distributed Database", authors: 'Corbett, Dean, et al. — Google', year: '2012', href: 'https://static.googleusercontent.com/media/research.google.com/en//archive/spanner-osdi2012.pdf' },
+  { cat: 'Distributed Systems', title: 'The Chubby Lock Service for Loosely-Coupled Distributed Systems', authors: 'Burrows — Google', year: '2006', href: 'https://research.google.com/archive/chubby-osdi06.pdf' },
+  { cat: 'Algorithms', title: 'Space/Time Trade-offs in Hash Coding with Allowable Errors', authors: 'Burton H. Bloom', year: '1970', href: 'https://dl.acm.org/doi/10.1145/362686.362692' },
+  { cat: 'Algorithms', title: 'SIEVE: An Efficient Turn-Key Eviction Algorithm for Web Caches', authors: 'Zhang, et al.', year: '2024', href: 'https://www.usenix.org/system/files/nsdi24-zhang-yazhuo.pdf' },
+  { cat: 'Machine Learning', title: 'Attention Is All You Need', authors: 'Vaswani, Shazeer, Parmar, et al. — Google', year: '2017', href: 'https://arxiv.org/abs/1706.03762' },
+  { cat: 'Machine Learning', title: 'Language Models are Few-Shot Learners', authors: 'Brown, Mann, Ryder, et al. — OpenAI', year: '2020', href: 'https://arxiv.org/abs/2005.14165' },
+];
+
+const cats = [...new Set(papers.map((p) => p.cat))];
+---
+
+<Layout
+  title="Papershelf · Ratul Dawar"
+  description="A curated shelf of research papers Ratul Dawar has read across databases, distributed systems, algorithms, and machine learning."
+>
+  <main>
+    <section class="hero os-hero">
+      <p class="eyebrow">Papershelf</p>
+      <h1>Papers worth <span class="grad">reading twice</span></h1>
+      <p class="lede">
+        A curated shelf of research papers I keep coming back to — the foundations of databases,
+        distributed systems, and the algorithms behind real-world infrastructure.
+      </p>
+      <div class="stats">
+        <div class="stat reveal"><div class="val"><span data-count={papers.length}>0</span></div><div class="label">On the shelf</div></div>
+        <div class="stat reveal"><div class="val"><span data-count={cats.length}>0</span></div><div class="label">Categories</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="1970">0</span></div><div class="label">Oldest paper</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="2024">0</span></div><div class="label">Newest paper</div></div>
+      </div>
+    </section>
+
+    {cats.map((cat, i) => (
+      <section class="os-project reveal" style={i === 0 ? 'padding-top:1rem;' : ''}>
+        <div class="os-project-head">
+          <div><h2>{cat}</h2></div>
+        </div>
+        <ul class="pr-list">
+          {papers.filter((p) => p.cat === cat).map((p) => (
+            <li>
+              <a class="pr paper-row" href={p.href} target="_blank" rel="noopener">
+                <span class="pr-state open">{p.year}</span>
+                <span class="paper-main">
+                  <span class="pr-title">{p.title}</span>
+                  <span class="paper-authors">{p.authors}</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+
+    <section class="contact reveal">
+      <h2>One paper a <span class="grad">week</span>.</h2>
+      <p>I read across databases, systems, and ML. More notes and write-ups live on my blog.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a href="https://ratuldawar.github.io" target="_blank" rel="noopener" class="btn btn-primary">Read the blog</a>
+        <a href="/" class="btn btn-ghost">← Back home</a>
+      </div>
+    </section>
+  </main>
+</Layout>
