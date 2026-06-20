@@ -65,8 +65,12 @@ const projects = [
   },
 ];
 
-const total = projects.reduce((a, p) => a + p.prs.length, 0);
-const merged = projects.reduce((a, p) => a + p.prs.filter((x) => x.s === 'merged').length, 0);
+const mergedProjects = projects
+  .map((p) => ({ ...p, prs: p.prs.filter((x) => x.s === 'merged') }))
+  .filter((p) => p.prs.length > 0);
+
+const total = mergedProjects.reduce((a, p) => a + p.prs.length, 0);
+const langs = new Set(mergedProjects.map((p) => p.lang)).size;
 ---
 
 <Layout
@@ -82,14 +86,14 @@ const merged = projects.reduce((a, p) => a + p.prs.filter((x) => x.s === 'merged
         connectors, and the infrastructure around them.
       </p>
       <div class="stats">
-        <div class="stat reveal"><div class="val"><span data-count={total} data-suffix="+">0</span></div><div class="label">Pull requests</div></div>
-        <div class="stat reveal"><div class="val"><span data-count={merged}>0</span></div><div class="label">Merged upstream</div></div>
-        <div class="stat reveal"><div class="val"><span data-count={projects.length}>0</span></div><div class="label">Projects</div></div>
-        <div class="stat reveal"><div class="val"><span data-count="4" data-suffix="">0</span></div><div class="label">Languages</div></div>
+        <div class="stat reveal"><div class="val"><span data-count={total}>0</span></div><div class="label">Merged PRs</div></div>
+        <div class="stat reveal"><div class="val"><span data-count={mergedProjects.length}>0</span></div><div class="label">Projects</div></div>
+        <div class="stat reveal"><div class="val"><span data-count={langs}>0</span></div><div class="label">Languages</div></div>
+        <div class="stat reveal"><div class="val">100<span style="color:var(--text-dim)">%</span></div><div class="label">Upstream</div></div>
       </div>
     </section>
 
-    {projects.map((p, i) => (
+    {mergedProjects.map((p, i) => (
       <section class="os-project reveal" style={i === 0 ? 'padding-top:1rem;' : ''}>
         <div class="os-project-head">
           <div>
