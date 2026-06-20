@@ -227,9 +227,10 @@ section { padding: 5rem 0; }
   font-size: clamp(1.15rem, 2.6vw, 1.55rem);
   font-style: italic;
   font-weight: 500;
+  line-height: 1.35;
   color: var(--amber);
-  margin-bottom: 1.75rem;
-  height: 1.6em;
+  margin-bottom: 1.6rem;
+  min-height: 2.7em;
 }
 
 .role-line .typed { color: var(--amber); }
@@ -255,9 +256,8 @@ section { padding: 5rem 0; }
 .cover {
   display: grid;
   gap: 3rem;
-  align-items: center;
-  min-height: 80vh;
-  padding: 4rem 0 3rem;
+  align-items: start;
+  padding: 3.5rem 0 3.5rem;
 }
 
 @media (min-width: 900px) {
