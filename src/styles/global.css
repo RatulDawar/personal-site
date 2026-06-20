@@ -418,6 +418,13 @@ section { padding: 5rem 0; }
 
 .tl-role .co { color: var(--amber); }
 
+.tl-note {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+}
+
 .tl-item ul {
   list-style: none;
   margin-top: 0.9rem;

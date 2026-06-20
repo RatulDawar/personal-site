@@ -2,38 +2,9 @@
 import Layout from '../layouts/Layout.astro';
 
 const experience = [
-  {
-    date: 'Jan 2026 — Present',
-    role: 'SDE 2',
-    co: 'Blinkit',
-    points: [
-      'Built real-time table streaming pipelines to the data lake, cutting inventory & replenishment lag across PAN India from <b>30 min → 1 min</b>.',
-      'Migrated Presto Gateway to Trino Gateway, saving <b>$30K/month</b> while improving query routing efficiency.',
-    ],
-  },
-  {
-    date: 'Jul 2024 — Dec 2025',
-    role: 'SDE 1',
-    co: 'Blinkit',
-    points: [
-      'Architected Eternal\'s (Blinkit, Zomato, District) in-house <b>Customer Data Platform</b>, scaling from 0 to <b>1000+ daily syncs</b>.',
-      'Built a sub-second segmentation engine on StarRocks for high-cardinality dimensions (user × product, user × restaurant).',
-      'Scaled the Trino + Iceberg platform to <b>1M+ queries</b> over petabyte-scale data; revamped routing to cut queue time by <b>50%</b>.',
-      'Replaced file-based access control with Open Policy Agent — provisioning time from <b>days → minutes</b>.',
-      'Led Tableau → Superset migration, scaling to <b>5K DAU</b> and 200K queries/day.',
-      'Introduced Arroyo (Rust streaming engine) alongside Flink and migrated Kafka pipelines to WarpStream.',
-    ],
-  },
-  {
-    date: 'Jan 2024 — Jun 2024',
-    role: 'SDE Intern',
-    co: 'Media.Net',
-    points: [
-      'Onboarded Trino, improving interactive query performance by <b>2x</b>.',
-      'Integrated Iceberg for <b>3x</b> query efficiency and optimized ingestion to cut storage costs.',
-      'Converted to full-time SDE 1.',
-    ],
-  },
+  { date: 'Jan 2026 — Present', role: 'SDE 2', co: 'Blinkit', note: 'Eternal (Blinkit · Zomato · District)' },
+  { date: 'Jul 2024 — Dec 2025', role: 'SDE 1', co: 'Blinkit', note: 'Eternal (Blinkit · Zomato · District)' },
+  { date: 'Jan 2024 — Jun 2024', role: 'SDE Intern', co: 'Media.Net', note: 'Converted to full-time SDE 1' },
 ];
 
 const openSource = [
@@ -75,9 +46,9 @@ const achievements = [
       </div>
 
       <div class="stats">
-        <div class="stat reveal"><div class="val"><span data-count="1" data-suffix="M+">0</span></div><div class="label">Trino queries scaled</div></div>
-        <div class="stat reveal"><div class="val">$<span data-count="95" data-suffix="K+">0</span></div><div class="label">Monthly infra saved</div></div>
         <div class="stat reveal"><div class="val"><span data-count="1645">0</span></div><div class="label">Codeforces rating</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="2072">0</span></div><div class="label">LeetCode rating</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="1785" data-suffix="+">0</span></div><div class="label">Problems solved</div></div>
         <div class="stat reveal"><div class="val"><span data-count="5" data-suffix="+">0</span></div><div class="label">OSS projects</div></div>
       </div>
     </section>
@@ -89,15 +60,14 @@ const achievements = [
       <div class="about-grid">
         <div class="reveal">
           <p>
-            I'm a <span class="hl">Software Engineer at Blinkit (Eternal)</span>, where I work on the
-            data platform powering Blinkit, Zomato, and District — from real-time streaming pipelines
-            to sub-second segmentation engines serving thousands of users.
+            I'm a <span class="hl">Software Engineer at Blinkit (Eternal)</span>, working across the
+            data and platform stack. Before that I interned and worked at Media.Net.
           </p>
           <p>
-            My core obsession is <span class="hl">performance and scale</span>: making query engines
-            faster, cutting infra costs by tens of thousands a month, and turning 30-minute data lags
-            into 1-minute ones. I studied <span class="hl">Information Technology at BIT Mesra</span>
-            (GPA 8.98) and have been hooked on systems ever since.
+            My core obsession is <span class="hl">performance and scale</span> — distributed systems,
+            query engines, and real-time data infrastructure. I studied
+            <span class="hl">Information Technology at BIT Mesra</span> (GPA 8.98) and have been hooked
+            on systems ever since.
           </p>
           <p>
             Outside work I contribute to <span class="hl">Apache Hudi, DataFusion, and Arroyo</span>,
@@ -130,9 +100,7 @@ const achievements = [
           <div class="tl-item reveal">
             <div class="tl-date">{job.date}</div>
             <div class="tl-role">{job.role} <span class="co">· {job.co}</span></div>
-            <ul>
-              {job.points.map((p) => <li set:html={p} />)}
-            </ul>
+            <div class="tl-note">{job.note}</div>
           </div>
         ))}
       </div>
