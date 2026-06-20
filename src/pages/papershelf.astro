@@ -28,12 +28,6 @@ const cats = [...new Set(papers.map((p) => p.cat))];
         A curated shelf of research papers I keep coming back to — the foundations of databases,
         distributed systems, and the algorithms behind real-world infrastructure.
       </p>
-      <div class="stats">
-        <div class="stat reveal"><div class="val"><span data-count={papers.length}>0</span></div><div class="label">On the shelf</div></div>
-        <div class="stat reveal"><div class="val"><span data-count={cats.length}>0</span></div><div class="label">Categories</div></div>
-        <div class="stat reveal"><div class="val"><span data-count="1970">0</span></div><div class="label">Oldest paper</div></div>
-        <div class="stat reveal"><div class="val"><span data-count="2024">0</span></div><div class="label">Newest paper</div></div>
-      </div>
     </section>
 
     {cats.map((cat, i) => (
