@@ -25,6 +25,7 @@ const {
   <body>
     <div class="scroll-progress"><span id="scrollbar"></span></div>
     <div class="aurora"><span></span><span></span><span></span></div>
+    <canvas class="pixel-bg" id="pixelbg" aria-hidden="true"></canvas>
     <div class="grid-overlay"></div>
 
     <header class="site-header">
@@ -136,6 +137,150 @@ const {
         }
       }, { threshold: 0.5 });
       counters.forEach((el) => cio.observe(el));
+    </script>
+
+    <script is:inline>
+      (function () {
+        const canvas = document.getElementById('pixelbg');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        const CELL = 17;
+        const GAP = 5;
+        const palette = [
+          [240, 169, 59],
+          [56, 217, 196],
+          [139, 124, 240],
+        ];
+
+        let cols = 0, rows = 0, dpr = 1, W = 0, H = 0;
+        let streams = [];
+        let scrollNorm = 0;
+        let targetScroll = 0;
+
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        function mix(c1, c2, t) {
+          return [lerp(c1[0], c2[0], t), lerp(c1[1], c2[1], t), lerp(c1[2], c2[2], t)];
+        }
+        function scrollColor(n) {
+          const p = n * (palette.length - 1);
+          const i = Math.min(palette.length - 2, Math.floor(p));
+          return mix(palette[i], palette[i + 1], p - i);
+        }
+
+        function resize() {
+          dpr = Math.min(window.devicePixelRatio || 1, 2);
+          W = window.innerWidth;
+          H = window.innerHeight;
+          canvas.width = W * dpr;
+          canvas.height = H * dpr;
+          canvas.style.width = W + 'px';
+          canvas.style.height = H + 'px';
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          cols = Math.ceil(W / CELL) + 1;
+          rows = Math.ceil(H / CELL) + 1;
+          initStreams();
+        }
+
+        function initStreams() {
+          const count = Math.max(5, Math.floor(cols / 5));
+          streams = [];
+          for (let i = 0; i < count; i++) streams.push(makeStream(true));
+        }
+        function makeStream(spread) {
+          return {
+            col: Math.floor(Math.random() * cols),
+            y: spread ? Math.random() * rows : -Math.random() * 12,
+            speed: 4 + Math.random() * 9,
+            len: 5 + Math.floor(Math.random() * 9),
+            ci: Math.floor(Math.random() * palette.length),
+          };
+        }
+
+        function onScroll() {
+          const h = document.documentElement;
+          const max = h.scrollHeight - h.clientHeight;
+          targetScroll = max > 0 ? Math.min(1, Math.max(0, h.scrollTop / max)) : 0;
+        }
+
+        let last = 0;
+        function frame(now) {
+          const dt = Math.min(0.05, (now - last) / 1000 || 0);
+          last = now;
+          scrollNorm += (targetScroll - scrollNorm) * 0.08;
+
+          const t = now / 1000;
+          const phase = t * 0.5 + scrollNorm * 8;
+          const flow = scrollNorm * 6;
+          const accent = scrollColor(scrollNorm);
+
+          ctx.clearRect(0, 0, W, H);
+
+          const size = CELL - GAP;
+          for (let x = 0; x < cols; x++) {
+            for (let y = 0; y < rows; y++) {
+              const v =
+                Math.sin(x * 0.35 + phase) * 0.5 +
+                Math.cos(y * 0.28 - phase * 0.8 + flow) * 0.5 +
+                Math.sin((x + y) * 0.2 + t * 0.7);
+              const n = (v + 2) / 4;
+              if (n < 0.62) continue;
+              const a = (n - 0.62) * 0.5;
+              const tint = n > 0.92;
+              if (tint) {
+                ctx.fillStyle = 'rgba(' + accent[0] + ',' + accent[1] + ',' + accent[2] + ',' + (a * 1.4).toFixed(3) + ')';
+              } else {
+                ctx.fillStyle = 'rgba(190,195,215,' + a.toFixed(3) + ')';
+              }
+              ctx.fillRect(x * CELL, y * CELL, size, size);
+            }
+          }
+
+          ctx.font = (CELL - GAP) + 'px "JetBrains Mono", monospace';
+          ctx.textBaseline = 'top';
+          for (const s of streams) {
+            s.y += s.speed * dt;
+            const col = palette[s.ci];
+            const headY = Math.floor(s.y);
+            for (let k = 0; k < s.len; k++) {
+              const cy = headY - k;
+              if (cy < 0 || cy >= rows) continue;
+              const fade = 1 - k / s.len;
+              const isHead = k === 0;
+              const a = fade * (isHead ? 0.85 : 0.4);
+              ctx.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + a.toFixed(3) + ')';
+              const ch = Math.sin(s.col * 12.9 + cy * 4.7) > 0 ? '1' : '0';
+              ctx.fillText(ch, s.col * CELL, cy * CELL);
+            }
+            if (s.y - s.len > rows) Object.assign(s, makeStream(false));
+          }
+
+          requestAnimationFrame(frame);
+        }
+
+        function staticFrame() {
+          const accent = scrollColor(0);
+          const size = CELL - GAP;
+          ctx.clearRect(0, 0, W, H);
+          for (let x = 0; x < cols; x++) {
+            for (let y = 0; y < rows; y++) {
+              const v = Math.sin(x * 0.35) * 0.5 + Math.cos(y * 0.28) * 0.5 + Math.sin((x + y) * 0.2);
+              const n = (v + 2) / 4;
+              if (n < 0.66) continue;
+              ctx.fillStyle = 'rgba(190,195,215,' + ((n - 0.66) * 0.4).toFixed(3) + ')';
+              ctx.fillRect(x * CELL, y * CELL, size, size);
+            }
+          }
+        }
+
+        resize();
+        window.addEventListener('resize', resize, { passive: true });
+        document.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+        if (reduced) staticFrame();
+        else requestAnimationFrame(frame);
+      })();
     </script>
   </body>
 </html>
