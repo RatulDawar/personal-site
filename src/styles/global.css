@@ -541,12 +541,12 @@ section { padding: 5rem 0; }
 .tl-head { display: flex; align-items: center; gap: 0.7rem; }
 
 .tl-logo {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
   object-fit: contain;
   background: #fff;
-  padding: 3px;
+  padding: 4px;
   flex-shrink: 0;
 }
 
