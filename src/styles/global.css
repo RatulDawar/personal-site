@@ -50,8 +50,8 @@ body {
   height: 100%;
   pointer-events: none;
   opacity: 0.9;
-  mask-image: radial-gradient(ellipse 52% 60% at 50% 45%, transparent 0%, transparent 42%, rgba(0,0,0,0.55) 64%, #000 88%);
-  -webkit-mask-image: radial-gradient(ellipse 52% 60% at 50% 45%, transparent 0%, transparent 42%, rgba(0,0,0,0.55) 64%, #000 88%);
+  mask-image: radial-gradient(ellipse 66% 72% at 50% 45%, transparent 0%, transparent 54%, rgba(0,0,0,0.5) 74%, #000 96%);
+  -webkit-mask-image: radial-gradient(ellipse 66% 72% at 50% 45%, transparent 0%, transparent 54%, rgba(0,0,0,0.5) 74%, #000 96%);
 }
 
 .content-scrim {
@@ -59,7 +59,7 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(ellipse 46% 55% at 50% 45%, rgba(7,7,11,0.82) 0%, rgba(7,7,11,0.5) 55%, transparent 78%);
+  background: radial-gradient(ellipse 60% 66% at 50% 45%, rgba(7,7,11,0.88) 0%, rgba(7,7,11,0.55) 62%, transparent 84%);
 }
 
 .aurora span {
