@@ -1,38 +1,195 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getCollection } from 'astro:content';
 
-const posts = (await getCollection('blog'))
-  .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const experience = [
+  {
+    date: 'Jan 2026 — Present',
+    role: 'SDE 2',
+    co: 'Blinkit',
+    points: [
+      'Built real-time table streaming pipelines to the data lake, cutting inventory & replenishment lag across PAN India from <b>30 min → 1 min</b>.',
+      'Migrated Presto Gateway to Trino Gateway, saving <b>$30K/month</b> while improving query routing efficiency.',
+    ],
+  },
+  {
+    date: 'Jul 2024 — Dec 2025',
+    role: 'SDE 1',
+    co: 'Blinkit',
+    points: [
+      'Architected Eternal\'s (Blinkit, Zomato, District) in-house <b>Customer Data Platform</b>, scaling from 0 to <b>1000+ daily syncs</b>.',
+      'Built a sub-second segmentation engine on StarRocks for high-cardinality dimensions (user × product, user × restaurant).',
+      'Scaled the Trino + Iceberg platform to <b>1M+ queries</b> over petabyte-scale data; revamped routing to cut queue time by <b>50%</b>.',
+      'Replaced file-based access control with Open Policy Agent — provisioning time from <b>days → minutes</b>.',
+      'Led Tableau → Superset migration, scaling to <b>5K DAU</b> and 200K queries/day.',
+      'Introduced Arroyo (Rust streaming engine) alongside Flink and migrated Kafka pipelines to WarpStream.',
+    ],
+  },
+  {
+    date: 'Jan 2024 — Jun 2024',
+    role: 'SDE Intern',
+    co: 'Media.Net',
+    points: [
+      'Onboarded Trino, improving interactive query performance by <b>2x</b>.',
+      'Integrated Iceberg for <b>3x</b> query efficiency and optimized ingestion to cut storage costs.',
+      'Converted to full-time SDE 1.',
+    ],
+  },
+];
+
+const openSource = [
+  { name: 'Apache Hudi', lang: 'Java', desc: 'Fixed a critical deadlock in the Hudi connector by migrating split loading from Runnable to a ResumableTask architecture, preventing thread-pool exhaustion on large partitioned tables.' },
+  { name: 'Apache DataFusion', lang: 'Rust', desc: 'Contributed improvements and fixes to query execution and optimization across the engine.' },
+  { name: 'Arroyo Systems', lang: 'Rust', desc: 'Added a row-time method in Arroyo SQL, nodeSelector & tolerations to the Helm chart, and helped fix Vec<&str> return-type support.' },
+  { name: 'Trino & StarRocks', lang: 'Helm · C++', desc: 'Enhanced Trino Helm deployment configuration and contributed improvements to the StarRocks query engine.' },
+];
+
+const profiles = [
+  { badge: 'CF', rank: 'Expert · 1645', sub: '960+ problems solved', href: 'https://codeforces.com/' , platform: 'Codeforces' },
+  { badge: 'LC', rank: 'Knight · 2072', sub: '825+ problems solved', href: 'https://leetcode.com/', platform: 'LeetCode' },
+];
+
+const achievements = [
+  'Led a team of 6 to <b>win GEP Techathon 2023</b>.',
+  'Ranked <b>383</b> among 25k+ in LeetCode Weekly Contest 284.',
+  'Secured rank <b>387</b> among 20k+ in Codeforces Round 798 (Div 2).',
+];
 ---
 
-<Layout title="Home" active="home">
-  <section class="hero">
-    <p class="eyebrow">Performance · Rust · Query engines</p>
-    <h1>Systems programming,<br />measured.</h1>
-    <p class="lede">
-      Deep dives into Rust experiments, Apache DataFusion contributions, and the mechanics
-      behind real speedups — with benchmarks, not vibes.
-    </p>
-  </section>
+<Layout>
+  <span id="top"></span>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">Software Engineer · Blinkit</p>
+      <h1>Hi, I'm <span class="grad">Ratul Dawar</span></h1>
+      <p class="role-line">
+        <span class="prompt">~$</span> <span class="typed" id="typed"></span><span class="cursor">&nbsp;</span>
+      </p>
+      <p class="lede">
+        I build large-scale distributed systems and real-time data platforms — query engines,
+        streaming pipelines, and the infrastructure that moves petabytes without breaking a sweat.
+        Competitive programmer and open-source contributor on the side.
+      </p>
+      <div class="btn-row">
+        <a href="#contact" class="btn btn-primary">Let's talk →</a>
+        <a href="https://github.com/RatulDawar" target="_blank" rel="noopener" class="btn btn-ghost">View GitHub</a>
+      </div>
 
-  <p class="section-label">Latest writing</p>
+      <div class="stats">
+        <div class="stat reveal"><div class="val"><span data-count="1" data-suffix="M+">0</span></div><div class="label">Trino queries scaled</div></div>
+        <div class="stat reveal"><div class="val">$<span data-count="95" data-suffix="K+">0</span></div><div class="label">Monthly infra saved</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="1645">0</span></div><div class="label">Codeforces rating</div></div>
+        <div class="stat reveal"><div class="val"><span data-count="5" data-suffix="+">0</span></div><div class="label">OSS projects</div></div>
+      </div>
+    </section>
 
-  <div class="post-grid">
-    {posts.map((post, i) => (
-      <article class:list={['post-card', { featured: post.data.featured && i === 0 }]}>
-        <div>
-          <div class="card-meta">
-            <time datetime={post.data.date.toISOString()}>
-              {post.data.date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </time>
-            <span class="card-tag">{post.data.tag}</span>
-          </div>
-          <h2><a href={`/blog/${post.slug}`}>{post.data.title}</a></h2>
-          <p>{post.data.description}</p>
-          <a class="read-more" href={`/blog/${post.slug}`}>Read the post →</a>
+    <section id="about">
+      <div class="section-head reveal">
+        <span class="num">01</span><h2>About me</h2><span class="rule"></span>
+      </div>
+      <div class="about-grid">
+        <div class="reveal">
+          <p>
+            I'm a <span class="hl">Software Engineer at Blinkit (Eternal)</span>, where I work on the
+            data platform powering Blinkit, Zomato, and District — from real-time streaming pipelines
+            to sub-second segmentation engines serving thousands of users.
+          </p>
+          <p>
+            My core obsession is <span class="hl">performance and scale</span>: making query engines
+            faster, cutting infra costs by tens of thousands a month, and turning 30-minute data lags
+            into 1-minute ones. I studied <span class="hl">Information Technology at BIT Mesra</span>
+            (GPA 8.98) and have been hooked on systems ever since.
+          </p>
+          <p>
+            Outside work I contribute to <span class="hl">Apache Hudi, DataFusion, and Arroyo</span>,
+            and grind competitive programming — Expert on Codeforces, Knight on LeetCode.
+          </p>
         </div>
-      </article>
-    ))}
-  </div>
+        <div class="skills-card reveal">
+          <h3>Languages</h3>
+          <div class="chips">
+            {['C/C++', 'Golang', 'Java', 'Rust', 'SQL', 'Terraform'].map((s) => <span class="chip">{s}</span>)}
+          </div>
+          <h3>Data & Systems</h3>
+          <div class="chips">
+            {['Trino', 'Iceberg', 'Spark', 'StarRocks', 'Debezium', 'Arroyo', 'Flink', 'Kafka'].map((s) => <span class="chip">{s}</span>)}
+          </div>
+          <h3>DevOps</h3>
+          <div class="chips">
+            {['AWS', 'Kubernetes', 'Docker', 'ECS', 'EMR'].map((s) => <span class="chip">{s}</span>)}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="experience">
+      <div class="section-head reveal">
+        <span class="num">02</span><h2>Experience</h2><span class="rule"></span>
+      </div>
+      <div class="timeline">
+        {experience.map((job) => (
+          <div class="tl-item reveal">
+            <div class="tl-date">{job.date}</div>
+            <div class="tl-role">{job.role} <span class="co">· {job.co}</span></div>
+            <ul>
+              {job.points.map((p) => <li set:html={p} />)}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section id="opensource">
+      <div class="section-head reveal">
+        <span class="num">03</span><h2>Open source</h2><span class="rule"></span>
+      </div>
+      <div class="cards">
+        {openSource.map((o) => (
+          <div class="os-card reveal">
+            <div class="top">
+              <h3>{o.name}</h3>
+              <span class="lang">{o.lang}</span>
+            </div>
+            <p>{o.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section id="profiles">
+      <div class="section-head reveal">
+        <span class="num">04</span><h2>Competitive programming</h2><span class="rule"></span>
+      </div>
+      <div class="profiles">
+        {profiles.map((p) => (
+          <a class="profile reveal" href={p.href} target="_blank" rel="noopener">
+            <div class="badge">{p.badge}</div>
+            <div>
+              <div class="rank">{p.platform} — {p.rank}</div>
+              <div class="sub">{p.sub}</div>
+            </div>
+          </a>
+        ))}
+      </div>
+
+      <div class="section-head reveal" style="margin-top:3.5rem;">
+        <span class="num">05</span><h2>Achievements</h2><span class="rule"></span>
+      </div>
+      <div class="achievements">
+        {achievements.map((a) => (
+          <div class="ach reveal">
+            <span class="ico">★</span><span set:html={a} />
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section id="contact" class="contact reveal">
+      <h2>Let's build something <span class="grad">fast</span>.</h2>
+      <p>Open to interesting problems in distributed systems, data infra, and performance engineering. Reach out anytime.</p>
+      <div class="btn-row" style="justify-content:center;">
+        <a href="mailto:ratuldawar11@gmail.com" class="btn btn-primary">ratuldawar11@gmail.com</a>
+        <a href="https://www.linkedin.com/in/ratul-dawar11/" target="_blank" rel="noopener" class="btn btn-ghost">LinkedIn</a>
+      </div>
+    </section>
+  </main>
 </Layout>
