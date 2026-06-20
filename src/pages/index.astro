@@ -29,7 +29,8 @@ const recentPosts = (await getCollection('blog'))
   .map((p) => ({
     date: p.data.date.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
     title: p.data.title,
-    slug: p.id,
+    href: p.data.external ?? `/blog/${p.id}/`,
+    external: !!p.data.external,
   }));
 
 const recentPapers = [
@@ -106,7 +107,7 @@ const recentPapers = [
             <li>
               <span class="when">{p.date}</span>
               <span class="sep">:</span>
-              <a href={`/blog/${p.slug}/`}>{p.title}</a>
+              <a href={p.href} target={p.external ? '_blank' : undefined} rel={p.external ? 'noopener' : undefined}>{p.title}{p.external && <span class="ext-mark"> ↗</span>}</a>
             </li>
           ))}
         </ul>

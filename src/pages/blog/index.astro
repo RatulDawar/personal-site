@@ -27,14 +27,20 @@ const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: '2
       <ul class="post-cards">
         {posts.map((post) => (
           <li>
-            <a class="post-card-row reveal" href={`/blog/${post.id}/`}>
+            <a
+              class="post-card-row reveal"
+              href={post.data.external ?? `/blog/${post.id}/`}
+              target={post.data.external ? '_blank' : undefined}
+              rel={post.data.external ? 'noopener' : undefined}
+            >
               <div class="pc-meta">
                 <time datetime={post.data.date.toISOString()}>{fmt(post.data.date)}</time>
                 <span class="card-tag">{post.data.tag}</span>
+                {post.data.external && <span class="card-ext">External ↗</span>}
               </div>
               <h2>{post.data.title}</h2>
               <p>{post.data.description}</p>
-              <span class="read-more">Read →</span>
+              <span class="read-more">{post.data.external ? 'Read on Lambda by Blinkit →' : 'Read →'}</span>
             </a>
           </li>
         ))}

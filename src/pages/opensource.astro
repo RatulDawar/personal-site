@@ -33,10 +33,11 @@ const projects = [
   },
   {
     name: 'Apache Hudi',
-    icon: dfIcon,
+    img: '/logos/hudi.png',
     lang: 'Java',
-    desc: 'Trino–Hudi plugin compatibility.',
+    desc: 'Split-loader deadlock fix and Trino–Hudi plugin compatibility.',
     prs: [
+      { n: 14225, t: 'Move Hudi split loaders to resumable tasks architecture to prevent deadlocks', s: 'merged' },
       { n: 14299, t: 'Update dependencies to make trino-hudi-plugin compatible with Trino 478', s: 'open' },
     ],
     base: 'https://github.com/apache/hudi/pull/',
