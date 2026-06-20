@@ -81,7 +81,6 @@ const mergedProjects = projects
   .filter((p) => p.prs.length > 0);
 
 const total = mergedProjects.reduce((a, p) => a + p.prs.length, 0);
-const langs = new Set(mergedProjects.map((p) => p.lang)).size;
 ---
 
 <Layout
@@ -99,8 +98,6 @@ const langs = new Set(mergedProjects.map((p) => p.lang)).size;
       <div class="stats">
         <div class="stat reveal"><div class="val"><span data-count={total}>0</span></div><div class="label">Merged PRs</div></div>
         <div class="stat reveal"><div class="val"><span data-count={mergedProjects.length}>0</span></div><div class="label">Projects</div></div>
-        <div class="stat reveal"><div class="val"><span data-count={langs}>0</span></div><div class="label">Languages</div></div>
-        <div class="stat reveal"><div class="val">100<span style="color:var(--text-dim)">%</span></div><div class="label">Upstream</div></div>
       </div>
     </section>
 
