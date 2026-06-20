@@ -23,7 +23,7 @@ function rehypeTableWrap() {
 }
 
 export default defineConfig({
-  site: 'https://personal-site-ratuldawar.vercel.app',
+  site: 'https://ratuld.me',
   markdown: {
     rehypePlugins: [rehypeTableWrap],
   },
