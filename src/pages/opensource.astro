@@ -64,8 +64,10 @@ const projects = [
     name: 'protobuf-go-lite',
     img: '/logos/protobuf-go-lite.png',
     lang: 'Go',
-    desc: 'JSON unmarshaling parity with protojson for unknown enum strings.',
+    desc: 'JSON unmarshaling parity with protojson for enums and numeric parsing.',
     prs: [
+      { n: 42, t: 'Match protojson numeric parsing for ints and floats', s: 'merged' },
+      { n: 41, t: 'Treat JSON null as unspecified for enums', s: 'merged' },
       { n: 40, t: 'Add DiscardUnknown for invalid enum strings in JSON unmarshaling', s: 'merged' },
     ],
     base: 'https://github.com/aperturerobotics/protobuf-go-lite/pull/',
